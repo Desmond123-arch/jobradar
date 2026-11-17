@@ -1,0 +1,8 @@
+# Companies to skip completely, one per line (name as it appears in companies.txt).
+Hugging Face
+Supabase
+ElevenLabs
+Tether
+iBusiness Funding
+KENTECH
+Scale Army

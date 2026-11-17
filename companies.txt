@@ -1,0 +1,58 @@
+# One company per line. Paste the URL of its careers page, the one you land on
+# when you click "View jobs". Works for Greenhouse, Lever and Ashby boards:
+#   https://job-boards.greenhouse.io/<company>
+#   https://boards.greenhouse.io/<company>
+#   https://jobs.lever.co/<company>
+#   https://jobs.ashbyhq.com/<company>
+# Add "| Name" after the URL to set how the company shows in the report.
+# Lines starting with # are ignored.
+#
+# How to find slugs: open any job posting on ycombinator.com/jobs,
+# hnhiring.com/locations/remote, or a company's own careers page.
+# If the Apply button opens one of the addresses above, copy that URL in here.
+# Wrong slugs appear under "Boards that failed" in the report — fix or remove them.
+
+# ---------------------------------------------------------------------------
+# Starter list — all boards verified against their public APIs.
+# Add or remove freely. The more companies you add, the better the signal.
+# ---------------------------------------------------------------------------
+
+# --- Voice & telephony AI ---
+https://job-boards.greenhouse.io/telnyx54 | Telnyx
+https://jobs.ashbyhq.com/vapi             | Vapi
+https://jobs.ashbyhq.com/rime             | Rime
+https://jobs.ashbyhq.com/bland            | Bland AI
+https://jobs.ashbyhq.com/deepgram         | Deepgram
+
+# --- LLM / foundation model companies ---
+https://job-boards.greenhouse.io/anthropic | Anthropic
+https://jobs.ashbyhq.com/cohere            | Cohere
+https://jobs.ashbyhq.com/character         | Character.AI
+https://jobs.ashbyhq.com/letta             | Letta
+
+# --- AI agents & productivity ---
+https://jobs.ashbyhq.com/cognition  | Cognition AI
+https://jobs.ashbyhq.com/ema        | Ema
+https://jobs.ashbyhq.com/dust       | Dust
+https://jobs.lever.co/copilotkit    | CopilotKit
+
+# --- Search, retrieval & evals ---
+https://jobs.ashbyhq.com/exa        | Exa
+https://job-boards.greenhouse.io/arizeai | Arize AI
+
+# --- Developer tools & AI infra ---
+https://jobs.ashbyhq.com/replit     | Replit
+https://jobs.ashbyhq.com/posthog    | PostHog
+https://jobs.ashbyhq.com/kernel     | Kernel
+https://jobs.lever.co/apolloresearch | Apollo Research
+
+# --- AI training data & evals work ---
+https://jobs.ashbyhq.com/g2i        | G2i
+https://job-boards.greenhouse.io/assemblyai | AssemblyAI
+https://job-boards.greenhouse.io/scaleai    | Scale AI
+
+# --- Other remote-friendly engineering ---
+https://jobs.lever.co/distru        | Distru
+https://jobs.lever.co/100ms         | 100ms
+https://jobs.lever.co/pigment       | Pigment
+https://jobs.ashbyhq.com/moxie      | Moxie
