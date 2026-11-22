@@ -65,8 +65,12 @@ class UI:
         except (EOFError, KeyboardInterrupt):
             raise Quit
 
-    def choose(self, prompt, options, default):
-        """options: [(key, label)]. Enter picks the default; a number or the key itself works."""
+    def close(self):
+        pass
+
+    def choose(self, prompt, options, default, preview=False):
+        """options: [(key, label)]. Enter picks the default; a number or the key itself works.
+        preview is only used by the full-screen version, to show a color theme as you move over it."""
         self.say(f"\n{prompt}")
         for i, (key, label) in enumerate(options, 1):
             self.say(f"  {i}. {label}{'  (default)' if key == default else ''}")
@@ -99,12 +103,41 @@ class UI:
 
 
 class FancyUI(UI):
-    """Same questions, but as arrow-key menus (gum style)."""
+    """Same questions, as arrow-key menus (gum style) on one full-screen session. Messages that would have been
+    printed are held and shown under the next menu's prompt, so they are seen instead of flashing past."""
     fancy = True
 
-    def choose(self, prompt, options, default):
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        import atexit
         import tui
-        picked = tui.run_select("Job Radar", prompt, options, default)
+        self.screen, self.notes = tui.Screen(), []
+        self._real_runner, self.runner = self.runner, self._run
+        atexit.register(self.close)
+
+    def say(self, text=""):
+        if str(text).strip():
+            self.notes.append(text)
+
+    def close(self):
+        """Back to the normal terminal, printing anything still held."""
+        self.screen.close()
+        held, self.notes = self.notes, []
+        for note in held:
+            self.out(note)
+
+    def _run(self, argv):
+        self.close()
+        return self._real_runner(argv)
+
+    def ask(self, prompt):
+        self.close()  # typing a line needs the normal terminal
+        return super().ask(prompt)
+
+    def choose(self, prompt, options, default, preview=False):
+        import tui
+        notes, self.notes = self.notes, []
+        picked = tui.run_select("Job Radar", prompt, options, default, screen=self.screen, notes=notes, preview=preview)
         if picked is None:
             raise Back
         return picked
@@ -216,7 +249,7 @@ def edit_one(ui, key, path):
     elif key == "theme":
         import tui
         settings.save(path, {"theme": ui.choose("Color theme", [(k, t["label"]) for k, t in tui.THEMES.items()],
-                                                s["theme"] if s["theme"] in tui.THEMES else tui.DEFAULT_THEME)})
+                                                s["theme"] if s["theme"] in tui.THEMES else tui.DEFAULT_THEME, preview=True)})
 
 
 def edit_settings(ui):
@@ -356,7 +389,7 @@ def browse_fullscreen(ui):
         return f"Opened in {label}" if ok else f"Couldn't open {label}. Link: {job.get('url', '')}"
 
     handlers = {"open": open_job, "applied": lambda j: mark_applied(quiet, j), "exclude": lambda j: exclude_company(quiet, j)}
-    tui.run_browser(jobs, handlers, openurl.resolve(openurl.read_setting())[1])
+    tui.run_browser(jobs, handlers, openurl.resolve(openurl.read_setting())[1], screen=ui.screen)
 
 
 def browse_plain(ui):
@@ -458,9 +491,13 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
         fancy = "--plain" not in argv and inp is input and tui.available()
     ui = (FancyUI if fancy else UI)(root, inp, out, runner, opener)
     ui.cv_dirs = cv_dirs
+    menu_ran = False
     try:
         if "settings" in argv:
-            edit_settings(ui)
+            try:
+                edit_settings(ui)
+            except Back:
+                pass
             return 0
         if ui.real_console() and not ui.path("settings.json").exists():
             first_run(ui)
@@ -468,12 +505,16 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
             ui.say("Tip: for the full-screen interface, run  pip install windows-curses  (or use WSL). "
                    "Until then, Browse opens the interactive report in your browser.")
         if "browse" in argv:
-            browse(ui)
+            try:
+                browse(ui)
+            except Back:
+                pass
             return 0
         if "themes" in argv:
             return show_themes(ui)
         if not fancy:
             ui.say("Job Radar")
+        menu_ran = True
         while True:
             try:
                 choice = ui.choose("What now?", [("search", "Search for jobs"), ("browse", "Browse the last results"),
@@ -496,9 +537,12 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
                     break
             except Back:
                 continue
-    except Quit:
+    except (Quit, KeyboardInterrupt):
         ui.say("")
-    ui.say("bye")
+    finally:
+        if menu_ran:
+            ui.say("bye")
+        ui.close()
     return 0
 
 

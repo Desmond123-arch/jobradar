@@ -216,6 +216,44 @@ class CliTests(unittest.TestCase):
         self.assertTrue(settings.load(self.root / "settings.json")["open_report"])
         self.assertIn("Open report after run", s.text)
 
+    def test_full_screen_ui_holds_messages_and_shows_them_in_the_next_menu(self):
+        import tui
+        calls, printed = [], []
+
+        class Screen:
+            closed = 0
+
+            def close(self):
+                Screen.closed += 1
+        orig = tui.run_select
+        tui.run_select = lambda title, prompt, options, default, screen=None, notes=(), preview=False: (
+            calls.append((prompt, list(notes), preview)) or "y")
+        try:
+            ui = cli.FancyUI(self.root, inp=lambda p: "", out=printed.append, runner=lambda argv: printed.append(("ran", argv)))
+            ui.screen = Screen()
+            ui.say("  read 21 skills")
+            ui.say("")  # blank messages are dropped
+            self.assertEqual(printed, [])  # nothing is printed over the full-screen display
+            self.assertEqual(ui.choose("Settings", [("y", "Yes")], "y", preview=True), "y")
+            self.assertEqual(calls, [("Settings", ["  read 21 skills"], True)])
+            self.assertEqual(ui.notes, [])  # shown once, then cleared
+            ui.say("First discovery scan")
+            ui.runner(["--open"])  # a run needs the normal terminal, and prints what was held first
+            self.assertEqual(printed, ["First discovery scan", ("ran", ["--open"])])
+            self.assertEqual(Screen.closed, 1)
+            ui.say("bye")
+            ui.close()
+            self.assertEqual(printed[-1], "bye")
+        finally:
+            tui.run_select = orig
+
+    def test_escape_on_the_settings_list_leaves_cleanly(self):
+        for sub in ("settings", "browse"):
+            lines = []
+            self.assertEqual(cli.main([sub], inp=lambda p: (_ for _ in ()).throw(EOFError), out=lines.append,
+                                      root=self.root, runner=lambda a: 0, fancy=False), 0)
+            self.assertNotIn("bye", "\n".join(lines))  # subcommands don't say goodbye
+
     def test_ctrl_d_exits_cleanly(self):
         self.assertEqual(Session([], self.root).go(), 0)
 

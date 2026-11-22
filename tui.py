@@ -434,17 +434,39 @@ def frame(state, h, w):
     return rows + [[] for _ in range(h - len(rows))]
 
 
-def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • enter select • esc cancel"):
-    """gum-style single choice list: a pink > marks the current line."""
-    rows = [[(f" {title} ", "badge")], [], [(prompt, "accent")], []]
+SAMPLE_JOBS = [
+    dict(title="Backend Engineer, Payments", company="Northwind Labs", location="Berlin, Germany", region="emea", new=True),
+    dict(title="Full Stack Engineer", company="Helio Systems", location="Remote - EMEA", region="africa-emea", new=False),
+]
+
+
+def theme_sample(width):
+    """A small mock job list, so a theme can be judged on more than a menu."""
+    w = min(width, 72)
+    rows = [[("  This is how the list will look", "dim")], []]
+    for i, job in enumerate(SAMPLE_JOBS):
+        rows += [[("  ", "normal")] + r for r in item_rows(job, i == 0, w - 2)]
+    return rows
+
+
+def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • enter select • esc cancel", notes=(), extra=()):
+    """gum-style single choice list: a pink > marks the current line. notes are short messages shown under the
+    prompt; extra rows go below the options. The key hints are always the final row returned, even when the
+    content has to be cut to fit a short window."""
+    rows = [[(f" {title} ", "badge")], [], [(prompt, "accent")]]
+    lines = [ln for n in notes for ln in str(n).splitlines() if ln.strip()][-4:]
+    rows += [[(clip(ln.strip(), w - 2), "dim")] for ln in lines]
+    rows.append([])
     for i, (_, label) in enumerate(options):
         on = i == cursor
         rows.append([("> " if on else "  ", "bar" if on else "normal"), (f"{i + 1}. " if i < 9 else "   ", "faint"),
                      (clip(label, w - 8), "sel_title" if on else "normal")])
-    rows += [[]] * max(0, min(3, h - len(rows) - 2))
-    rows.append(help_line([(k, d) for k, d in (p.split(" ", 1) for p in hint.split(" • "))]))
-    rows = [fit_spans(r, w) for r in rows[:h]]
-    return rows
+    if extra:
+        rows += [[]] + list(extra)
+    help_row = help_line([(k, d) for k, d in (p.split(" ", 1) for p in hint.split(" • "))])
+    body = rows[:max(0, h - 1)]
+    rows = body + [[]] * max(0, min(2, h - len(body) - 1)) + [help_row]
+    return [fit_spans(r, w) for r in rows[:h]]
 
 
 # ---------------------------------------------------------------- curses
@@ -590,8 +612,7 @@ def theme_html(jobs, w=104, h=26):
 
 
 def paint(stdscr, rows, attrs):
-    stdscr.bkgd(" ", attrs["normal"])
-    stdscr.erase()
+    stdscr.erase()  # the background is set once per theme (Screen.set_theme), never per frame
     for y, spans in enumerate(rows):
         x = 0
         for text, style in spans:
@@ -614,27 +635,57 @@ def available():
     return curses is not None and os.isatty(0) and os.isatty(1)
 
 
-def _init_screen(stdscr, theme):
-    try:
-        curses.curs_set(0)
-    except curses.error:
-        pass
-    stdscr.keypad(True)
-    return init_styles(theme)
+class Screen:
+    """One curses session shared by consecutive menus. Opening and closing it for every question made the whole
+    terminal flash between questions, so the session stays up until something needs the normal terminal."""
+
+    def __init__(self, theme=None):
+        self.stdscr, self.attrs, self.theme = None, {}, theme
+
+    def open(self):
+        if self.stdscr is not None:
+            return self.stdscr
+        setup()
+        self.stdscr = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+        self.stdscr.keypad(True)
+        try:
+            curses.curs_set(0)
+        except curses.error:
+            pass
+        self.set_theme(self.theme or load_theme())
+        return self.stdscr
+
+    def set_theme(self, name):
+        self.theme = name
+        self.attrs = init_styles(name)
+        self.stdscr.bkgd(" ", self.attrs["normal"])
+
+    def close(self):
+        if self.stdscr is None:
+            return
+        stdscr, self.stdscr = self.stdscr, None
+        try:
+            stdscr.keypad(False)
+            curses.nocbreak()
+            curses.echo()
+        except curses.error:
+            pass
+        curses.endwin()
 
 
-def run_browser(jobs, handlers, browser_label="your browser"):
+def run_browser(jobs, handlers, browser_label="your browser", screen=None):
     """Full-screen list. handlers: {'open': fn(job)->str, 'applied': fn(job)->str, 'exclude': fn(job)->str}.
     Each handler returns the message to flash; 'applied' and 'exclude' also remove roles from the list."""
-    setup()
-
-    def loop(stdscr):
-        theme = load_theme()
-        attrs = _init_screen(stdscr, theme)
-        state = State(jobs, browser_label, theme)
+    own = screen is None
+    screen = screen or Screen()
+    try:
+        stdscr = screen.open()
+        state = State(jobs, browser_label, screen.theme)
         while True:
             h, w = stdscr.getmaxyx()
-            paint(stdscr, frame(state, h, w), attrs)
+            paint(stdscr, frame(state, h, w), screen.attrs)
             try:
                 raw = stdscr.get_wch()
             except curses.error:
@@ -646,7 +697,7 @@ def run_browser(jobs, handlers, browser_label="your browser"):
             event = state.press(raw)
             if state.theme_changed:
                 state.theme_changed = False
-                attrs = init_styles(state.theme)
+                screen.set_theme(state.theme)
                 save_theme(state.theme)
             if not event:
                 continue
@@ -658,37 +709,51 @@ def run_browser(jobs, handlers, browser_label="your browser"):
                 state.remove_where(lambda j: j["_i"] == job["_i"])
             elif kind == "exclude":
                 state.remove_where(lambda j: j.get("company") == job.get("company"))
+    finally:
+        if own:
+            screen.close()
 
-    curses.wrapper(loop)
 
-
-def run_select(title, prompt, options, default):
-    """Arrow-key chooser. Returns the chosen key, or None when cancelled."""
-    setup()
+def run_select(title, prompt, options, default, screen=None, notes=(), preview=False):
+    """Arrow-key chooser. Returns the chosen key, or None when cancelled.
+    preview=True is for choosing a color theme: the keys are theme names, the screen switches to each one as you
+    move over it, and Esc puts the original back."""
+    own = screen is None
+    screen = screen or Screen()
     keys = [k for k, _ in options]
-
-    def loop(stdscr):
-        attrs = _init_screen(stdscr, load_theme())
+    try:
+        stdscr = screen.open()
+        original = screen.theme
         cur = keys.index(default) if default in keys else 0
+        if preview and keys[cur] in THEMES and screen.theme != keys[cur]:
+            screen.set_theme(keys[cur])
         while True:
             h, w = stdscr.getmaxyx()
-            paint(stdscr, select_frame(title, prompt, options, cur, h, w), attrs)
+            extra = theme_sample(w) if preview else ()
+            paint(stdscr, select_frame(title, prompt, options, cur, h, w, notes=notes, extra=extra), screen.attrs)
             try:
                 raw = stdscr.get_wch()
             except curses.error:
                 continue
-            except KeyboardInterrupt:
-                return None
             code, ch = key_of(raw)
+            before = cur
             if code == curses.KEY_DOWN or ch == "j":
                 cur = (cur + 1) % len(keys)
             elif code == curses.KEY_UP or ch == "k":
                 cur = (cur - 1) % len(keys)
             elif ch.isdigit() and 1 <= int(ch) <= len(keys):
-                return keys[int(ch) - 1]
+                cur = int(ch) - 1
+                if preview:
+                    screen.set_theme(keys[cur])
+                return keys[cur]
             elif code in (10, 13, curses.KEY_ENTER):
                 return keys[cur]
             elif code == 27 or ch == "q":
+                if preview and original:
+                    screen.set_theme(original)
                 return None
-
-    return curses.wrapper(loop)
+            if preview and cur != before:
+                screen.set_theme(keys[cur])
+    finally:
+        if own:
+            screen.close()

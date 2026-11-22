@@ -152,6 +152,88 @@ class FrameTests(unittest.TestCase):
         self.assertIn("  1. One", text)
 
 
+class FakeWin:
+    """Just enough of a curses window to drive run_select without a terminal."""
+
+    def __init__(self, keys):
+        self.keys = list(keys)
+
+    def getmaxyx(self):
+        return 30, 100
+
+    def erase(self): pass
+    def addstr(self, *a): pass
+    def refresh(self): pass
+
+    def get_wch(self):
+        return self.keys.pop(0)
+
+
+class FakeScreen:
+    def __init__(self, keys, theme="glow"):
+        self.win, self.theme, self.attrs, self.themes_set, self.closed = FakeWin(keys), theme, {}, [], 0
+
+    def open(self):
+        return self.win
+
+    def set_theme(self, name):
+        self.theme = name
+        self.themes_set.append(name)
+
+    def close(self):
+        self.closed += 1
+
+
+class SelectTests(unittest.TestCase):
+    OPTIONS = [(k, v["label"]) for k, v in tui.THEMES.items()]
+
+    def pick(self, keys, preview=True, default="glow"):
+        screen = FakeScreen(keys)
+        return tui.run_select("Job Radar", "Color theme", self.OPTIONS, default, screen=screen, preview=preview), screen
+
+    def test_moving_over_a_theme_switches_to_it_and_enter_keeps_it(self):
+        got, screen = self.pick([curses.KEY_DOWN, curses.KEY_DOWN, 10])
+        self.assertEqual(got, "tokyonight")
+        self.assertEqual(screen.themes_set, ["catppuccin", "tokyonight"])
+        self.assertEqual(screen.theme, "tokyonight")
+
+    def test_escape_puts_the_original_theme_back(self):
+        got, screen = self.pick([curses.KEY_DOWN, curses.KEY_DOWN, curses.KEY_DOWN, 27])
+        self.assertIsNone(got)
+        self.assertEqual(screen.theme, "glow")
+        self.assertEqual(screen.themes_set[-1], "glow")
+
+    def test_wrapping_up_and_a_number_key_also_preview(self):
+        got, screen = self.pick([curses.KEY_UP, "k", "3"])
+        self.assertEqual(got, "tokyonight")
+        self.assertEqual(screen.theme, "tokyonight")
+        self.assertEqual(screen.themes_set[:2], ["nord", "gruvbox"])  # wrapped past the top
+
+    def test_without_preview_the_theme_never_changes(self):
+        got, screen = self.pick([curses.KEY_DOWN, 10], preview=False)
+        self.assertEqual(got, "catppuccin")
+        self.assertEqual(screen.themes_set, [])
+
+    def test_a_shared_screen_is_left_open_for_the_next_menu(self):
+        _, screen = self.pick([10])
+        self.assertEqual(screen.closed, 0)
+
+    def test_select_frame_shows_notes_and_keeps_the_key_hints_on_the_last_line(self):
+        for h in (30, 14, 9):
+            rows = tui.plain(tui.select_frame("Job Radar", "Settings", [("a", "One"), ("b", "Two")], 0, h, 70,
+                                              notes=["  read 21 skills from cv.pdf: AWS, Docker"], extra=tui.theme_sample(70)))
+            self.assertLessEqual(len(rows), h)
+            self.assertIn("esc cancel", rows[-1])  # the key hints are always the final row, even when the list is cut short
+            if h >= 14:
+                self.assertTrue(any("read 21 skills" in r for r in rows))
+
+    def test_theme_sample_shows_two_mock_jobs_within_the_width(self):
+        rows = tui.theme_sample(60)
+        self.assertIn("Backend Engineer, Payments", "\n".join(tui.plain(rows)))
+        for r in rows:
+            self.assertLessEqual(tui.spans_width(r), 60)
+
+
 class OpenUrlTests(unittest.TestCase):
     CHROME = "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe"
 
