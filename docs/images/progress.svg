@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="936" height="154" viewBox="0 0 936 154" role="img" aria-label="python jobradar.py --everything">
+<rect width="936" height="154" rx="12" fill="#161616"/>
+<path d="M0 12a12 12 0 0 1 12-12h912a12 12 0 0 1 12 12v26H0z" fill="#ffffff" fill-opacity="0.06"/>
+<circle cx="24" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="19" r="6" fill="#febc2e"/>
+<circle cx="64" cy="19" r="6" fill="#28c840"/>
+<text x="468" y="24" text-anchor="middle" font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="13" fill="#DDDDDD" fill-opacity="0.55">python jobradar.py --everything</text>
+<g font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="15" text-rendering="geometricPrecision">
+<text x="36" y="70" fill="#5fd787" font-weight="700">✓</text>
+<text x="54 63 72 81 90 99 108 117 135 144 153 171 180 189 207 216 225 234 243 252 261" y="70" fill="#DDDDDD">Scanningthewebarchive</text>
+<text x="279 288 297 306 315 324 342 351 360 369 378 405 414 423 432" y="70" fill="#626262">11,888slugs1:52</text>
+<text x="36" y="90" fill="#5fd787" font-weight="700">✓</text>
+<text x="54 63 72 90 99 108 117 126 135 144 153 162 171 180" y="90" fill="#DDDDDD">Jobaggregators</text>
+<text x="198 207 216 225 234 252 261 270 279 288 315 324 333 342" y="90" fill="#626262">2,191roles0:09</text>
+<text x="36 45 54 63 72 81 90 108 117 126 144 153 162 171 180 189" y="110" fill="#626262">Readingjobboards</text>
+<text x="207 216 225 234 243 252 261 270 279 288 297 306 315 324 333 342 351 360 369 378" y="110" fill="#ff5fff">████████████████████</text>
+<text x="387 396 405 414 423 432 441 450 459 468 477 486 495 504 513 522" y="110" fill="#444444">░░░░░░░░░░░░░░░░</text>
+<text x="540 549 558 567 576 585 594 603 612 621 630 666 675 684 711 720 729 738 765 774 783 801 810 819 828" y="110" fill="#626262">3,412/5,99357%4:12ETA3:10</text>
+</g></svg>

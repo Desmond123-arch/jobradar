@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1098" height="674" viewBox="0 0 1098 674" role="img" aria-label="jobradar browse">
+<rect width="1098" height="674" rx="12" fill="#161616"/>
+<path d="M0 12a12 12 0 0 1 12-12h1074a12 12 0 0 1 12 12v26H0z" fill="#ffffff" fill-opacity="0.06"/>
+<circle cx="24" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="19" r="6" fill="#febc2e"/>
+<circle cx="64" cy="19" r="6" fill="#28c840"/>
+<text x="549" y="24" text-anchor="middle" font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="13" fill="#DDDDDD" fill-opacity="0.55">jobradar browse</text>
+<g font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="15" text-rendering="geometricPrecision">
+<rect x="18" y="56" width="99" height="20" fill="#EE6FF8"/>
+<text x="27 36 45 63 72 81 90 99" y="70" fill="#ECFD65" font-weight="700">JobRadar</text>
+<text x="135 153 162 180 198 207 216 225 234" y="70" fill="#626262">8of8roles</text>
+<text x="252" y="70" fill="#3C3C3C">•</text>
+<rect x="270" y="56" width="63" height="20" fill="#04B575"/>
+<text x="279 297 306 315" y="70" fill="#FFFDF5" font-weight="700">4new</text>
+<text x="18 27 36 45 54 72 81 90 99 117 126 135 144 153" y="90" fill="#626262">sort:bestmatch</text>
+<text x="36 45 54 63 72 81 99 108 117 126 135 144 153 162 171" y="130" fill="#DDDDDD">PythonDeveloper</text>
+<text x="504 513 531 540 549 558 567 576 585 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747 756 765 774 783 792 801 810 819 828 837 846 855 864 873 882 891 900 909 918 927 936 945 954 963 972 981 990 999 1008 1017 1026 1035 1044 1053 1062 1071" y="130" fill="#7D56F4">╭─details────────────────────────────────────────────────────╮</text>
+<text x="36 45 54 63 72 81 90 99 108 117" y="150" fill="#979797">Brightpath</text>
+<text x="135 153 162 171 180 189 198 216 225 234 243 252 261 270" y="150" fill="#626262">·Lagos,Nigeria</text>
+<rect x="333" y="136" width="45" height="20" fill="#04B575"/>
+<text x="342 351 360" y="150" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="387 396 405 414 423 432 441 450 459 468 477" y="150" fill="#04B575" font-weight="700">AFRICA/EMEA</text>
+<text x="504" y="150" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 594 603 612 621 630 639 648 657 666 684 693 702 711 720 729 738 747" y="150" fill="#EE6FF8" font-weight="700">BackendEngineer,Payments</text>
+<text x="1071" y="150" fill="#7D56F4">│</text>
+<text x="504" y="170" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 612 621 630 639" y="170" fill="#979797">NorthwindLabs</text>
+<text x="657 675 684 693 702 711 720 729 747 756 765 774 783 792 801" y="170" fill="#626262">·Berlin,Germany</text>
+<text x="1071" y="170" fill="#7D56F4">│</text>
+<text x="18" y="190" fill="#AD58B4" font-weight="700">┃</text>
+<text x="36 45 54 63 72 81 90 108 117 126 135 144 153 162 171 180 198 207 216 225 234 243 252 261" y="190" fill="#EE6FF8" font-weight="700">BackendEngineer,Payments</text>
+<text x="504" y="190" fill="#7D56F4">│</text>
+<text x="1071" y="190" fill="#7D56F4">│</text>
+<text x="18" y="210" fill="#AD58B4" font-weight="700">┃</text>
+<text x="36 45 54 63 72 81 90 99 108 126 135 144 153" y="210" fill="#99519E">NorthwindLabs</text>
+<text x="171 189 198 207 216 225 234 243 261 270 279 288 297 306 315" y="210" fill="#626262">·Berlin,Germany</text>
+<rect x="396" y="196" width="45" height="20" fill="#04B575"/>
+<text x="405 414 423" y="210" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="450 459 468 477" y="210" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="210" fill="#7D56F4">│</text>
+<rect x="522" y="196" width="45" height="20" fill="#04B575"/>
+<text x="531 540 549" y="210" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="576 585 594 603" y="210" fill="#04B575" font-weight="700">EMEA</text>
+<text x="1071" y="210" fill="#7D56F4">│</text>
+<text x="504" y="230" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 603 612 630 639 648 657 666 684 693 702 711 720 729 738 756 765 774 783 792 801 810" y="230" fill="#626262">locationinEMEA:Berlin,Germany</text>
+<text x="1071" y="230" fill="#7D56F4">│</text>
+<text x="36 45 54 63 81 90 99 108 117 135 144 153 162 171 180 189 198" y="250" fill="#DDDDDD">FullStackEngineer</text>
+<text x="504" y="250" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 585 594 603 612 621 630 639 648 657 666 684 702 711 720 738 747" y="250" fill="#626262">posted2026-11-21•fit10</text>
+<text x="1071" y="250" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 90 99 108 117 126 135 144" y="270" fill="#979797">HelioSystems</text>
+<text x="162 180 189 198 207 216 225 243 261 270 279 288" y="270" fill="#626262">·Remote-EMEA</text>
+<rect x="333" y="256" width="45" height="20" fill="#04B575"/>
+<text x="342 351 360" y="270" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="387 396 405 414 423 432 441 450 459 468 477" y="270" fill="#04B575" font-weight="700">AFRICA/EMEA</text>
+<text x="504" y="270" fill="#7D56F4">│</text>
+<text x="1071" y="270" fill="#7D56F4">│</text>
+<text x="504" y="290" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 603 612 630 639 648 657 666 684 693 702 711 720 729 738 747 765 774 783 792 801 810 819 837 846 855 864 873 882 891 900" y="290" fill="#EE6FF8">engineeringrole;mentionspython,postgres</text>
+<text x="1071" y="290" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 90 99 117 126 135 144 153 162 171 180 198 207 216 234 243 252 261 270 279 288 297" y="310" fill="#DDDDDD">SoftwareEngineerII,Platform</text>
+<text x="504" y="310" fill="#7D56F4">│</text>
+<text x="1071" y="310" fill="#7D56F4">│</text>
+<text x="36 45 54 63 81 90 99 108 117" y="330" fill="#979797">AcmeCloud</text>
+<text x="135 153 162 171 180 189 198 216 234 243 252 261 270 279 288 297 306" y="330" fill="#626262">·Remote-Worldwide</text>
+<rect x="351" y="316" width="45" height="20" fill="#04B575"/>
+<text x="360 369 378" y="330" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="405 414 423 432 441 450 459 468 477" y="330" fill="#04B575" font-weight="700">WORLDWIDE</text>
+<text x="504" y="330" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 576 585 594 612 621 630 648 657 666 684 693 702 711 720 729 738 747 765 774 783 792 801 810 828 837 846 855 873 882 891 900 909 918 927 936 945 963 972 981 990 999 1008 1017 1035 1044 1053" y="330" fill="#DDDDDD">Buildandruntheservicesbehindcardpayments.Python,Go,</text>
+<text x="1071" y="330" fill="#7D56F4">│</text>
+<text x="504" y="350" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 603 621 630 639 657 666 675 684 693 702 720 729 747 756 765 783 792 801 810 828 837 846 855 864 873 891 900 909 927 936 945 954 963 972 981 990 999 1008 1017" y="350" fill="#DDDDDD">PostgreSQLandKafka,onAWSwithDockerandKubernetes.</text>
+<text x="1071" y="350" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 90 99 108 117 126 135 153 162 171 180 189 198 207 216 225" y="370" fill="#DDDDDD">ReactNativeDeveloper</text>
+<text x="504" y="370" fill="#7D56F4">│</text>
+<text x="1071" y="370" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 90 99 108" y="390" fill="#979797">LumenPay</text>
+<text x="126 144 153 162 171 180 189 198 216 225" y="390" fill="#626262">·London,UK</text>
+<text x="450 459 468 477" y="390" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="390" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747" y="390" fill="#89F0CB" text-decoration="underline">https://jobs.example.com/0</text>
+<text x="1071" y="390" fill="#7D56F4">│</text>
+<text x="504" y="410" fill="#7D56F4">│</text>
+<text x="1071" y="410" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 90 99 117 126 135 144 153 162 171 180" y="430" fill="#DDDDDD">FrontendEngineer</text>
+<text x="504" y="430" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558" y="430" fill="#979797">enter</text>
+<text x="576 585 594 603 621 630 648 657 666 675 684 693" y="430" fill="#626262">openinChrome</text>
+<text x="1071" y="430" fill="#7D56F4">│</text>
+<text x="36 45 54 63 81 90 99 108 117 126 135 144 153" y="450" fill="#979797">KiteAnalytics</text>
+<text x="171 189 198 207 216 225 234 252 270 279 288 297 306 315" y="450" fill="#626262">·Remote-Europe</text>
+<text x="450 459 468 477" y="450" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="450" fill="#7D56F4">│</text>
+<text x="1071" y="450" fill="#7D56F4">│</text>
+<text x="504" y="470" fill="#7D56F4">│</text>
+<text x="1071" y="470" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 99 108 117 126 135 144 153 162" y="490" fill="#DDDDDD">DevOpsEngineer</text>
+<text x="504" y="490" fill="#7D56F4">│</text>
+<text x="1071" y="490" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 90 108 117" y="510" fill="#979797">FoundryAI</text>
+<text x="135 153 162 171 180 189 198 207 225 234 243 252 261 270" y="510" fill="#626262">·Warsaw,Poland</text>
+<text x="450 459 468 477" y="510" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="510" fill="#7D56F4">│</text>
+<text x="1071" y="510" fill="#7D56F4">│</text>
+<text x="504" y="530" fill="#7D56F4">│</text>
+<text x="1071" y="530" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 99 108 117 126 135 144 153 162 180 189 198 207 216 225 234 243 252" y="550" fill="#DDDDDD">MobileEngineer(Android)</text>
+<text x="504" y="550" fill="#7D56F4">│</text>
+<text x="1071" y="550" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 99 108 117 126 135 144" y="570" fill="#979797">NimbusHealth</text>
+<text x="162 180 189 198 207 216 225 234 243 261 270 279 288 297" y="570" fill="#626262">·Nairobi,Kenya</text>
+<text x="450 459 468 477" y="570" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="570" fill="#7D56F4">│</text>
+<text x="1071" y="570" fill="#7D56F4">│</text>
+<text x="504" y="590" fill="#7D56F4">│</text>
+<text x="1071" y="590" fill="#7D56F4">│</text>
+<text x="504 513 522 531 540 549 558 567 576 585 594 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747 756 765 774 783 792 801 810 819 828 837 846 855 864 873 882 891 900 909 918 927 936 945 954 963 972 981 990 999 1008 1017 1026 1035 1044 1053 1062 1071" y="610" fill="#7D56F4">╰──────────────────────────────────────────────────────────────╯</text>
+<text x="18 27 36" y="650" fill="#979797">↑/↓</text>
+<text x="54 63 72 81" y="650" fill="#626262">move</text>
+<text x="99" y="650" fill="#3C3C3C">•</text>
+<text x="117 126 135 144 153" y="650" fill="#979797">enter</text>
+<text x="171 180 189 198" y="650" fill="#626262">open</text>
+<text x="216" y="650" fill="#3C3C3C">•</text>
+<text x="234" y="650" fill="#979797">/</text>
+<text x="252 261 270 279 288 297" y="650" fill="#626262">filter</text>
+<text x="315" y="650" fill="#3C3C3C">•</text>
+<text x="333" y="650" fill="#979797">r</text>
+<text x="351 360 369 378 387 396" y="650" fill="#626262">region</text>
+<text x="414" y="650" fill="#3C3C3C">•</text>
+<text x="432" y="650" fill="#979797">n</text>
+<text x="450 459 468" y="650" fill="#626262">new</text>
+<text x="486" y="650" fill="#3C3C3C">•</text>
+<text x="504" y="650" fill="#979797">s</text>
+<text x="522 531 540 549" y="650" fill="#626262">sort</text>
+<text x="567" y="650" fill="#3C3C3C">•</text>
+<text x="585" y="650" fill="#979797">t</text>
+<text x="603 612 621 630 639" y="650" fill="#626262">theme</text>
+<text x="657" y="650" fill="#3C3C3C">•</text>
+<text x="675" y="650" fill="#979797">a</text>
+<text x="693 702 711 720 729 738 747" y="650" fill="#626262">applied</text>
+<text x="765" y="650" fill="#3C3C3C">•</text>
+<text x="783" y="650" fill="#979797">x</text>
+<text x="801 810 819 828 837 846 855" y="650" fill="#626262">exclude</text>
+<text x="873" y="650" fill="#3C3C3C">•</text>
+<text x="891" y="650" fill="#979797">?</text>
+<text x="909 918 927 936" y="650" fill="#626262">more</text>
+<text x="954" y="650" fill="#3C3C3C">•</text>
+<text x="972" y="650" fill="#979797">q</text>
+<text x="990 999 1008 1017" y="650" fill="#626262">quit</text>
+</g></svg>

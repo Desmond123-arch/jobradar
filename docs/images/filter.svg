@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1098" height="674" viewBox="0 0 1098 674" role="img" aria-label="jobradar browse">
+<rect width="1098" height="674" rx="12" fill="#161616"/>
+<path d="M0 12a12 12 0 0 1 12-12h1074a12 12 0 0 1 12 12v26H0z" fill="#ffffff" fill-opacity="0.06"/>
+<circle cx="24" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="19" r="6" fill="#febc2e"/>
+<circle cx="64" cy="19" r="6" fill="#28c840"/>
+<text x="549" y="24" text-anchor="middle" font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="13" fill="#DDDDDD" fill-opacity="0.55">jobradar browse</text>
+<g font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="15" text-rendering="geometricPrecision">
+<rect x="18" y="56" width="99" height="20" fill="#EE6FF8"/>
+<text x="27 36 45 63 72 81 90 99" y="70" fill="#ECFD65" font-weight="700">JobRadar</text>
+<text x="135 153 162 180 198 207 216 225 234" y="70" fill="#626262">3of8roles</text>
+<text x="252" y="70" fill="#3C3C3C">•</text>
+<rect x="270" y="56" width="63" height="20" fill="#04B575"/>
+<text x="279 297 306 315" y="70" fill="#FFFDF5" font-weight="700">4new</text>
+<text x="18" y="90" fill="#EE6FF8">/</text>
+<text x="36 45 54 63 72" y="90" fill="#DDDDDD" font-weight="700">react</text>
+<text x="81" y="90" fill="#EE6FF8">█</text>
+<text x="18" y="130" fill="#AD58B4" font-weight="700">┃</text>
+<text x="36 45 54 63 81 90 99 108 117 135 144 153 162 171 180 189 198" y="130" fill="#EE6FF8" font-weight="700">FullStackEngineer</text>
+<text x="504 513 531 540 549 558 567 576 585 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747 756 765 774 783 792 801 810 819 828 837 846 855 864 873 882 891 900 909 918 927 936 945 954 963 972 981 990 999 1008 1017 1026 1035 1044 1053 1062 1071" y="130" fill="#7D56F4">╭─details────────────────────────────────────────────────────╮</text>
+<text x="18" y="150" fill="#AD58B4" font-weight="700">┃</text>
+<text x="36 45 54 63 72 90 99 108 117 126 135 144" y="150" fill="#99519E">HelioSystems</text>
+<text x="162 180 189 198 207 216 225 243 261 270 279 288" y="150" fill="#626262">·Remote-EMEA</text>
+<rect x="333" y="136" width="45" height="20" fill="#04B575"/>
+<text x="342 351 360" y="150" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="387 396 405 414 423 432 441 450 459 468 477" y="150" fill="#04B575" font-weight="700">AFRICA/EMEA</text>
+<text x="504" y="150" fill="#7D56F4">│</text>
+<text x="522 531 540 549 567 576 585 594 603 621 630 639 648 657 666 675 684" y="150" fill="#EE6FF8" font-weight="700">FullStackEngineer</text>
+<text x="1071" y="150" fill="#7D56F4">│</text>
+<text x="504" y="170" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 576 585 594 603 612 621 630" y="170" fill="#979797">HelioSystems</text>
+<text x="648 666 675 684 693 702 711 729 747 756 765 774" y="170" fill="#626262">·Remote-EMEA</text>
+<text x="1071" y="170" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 90 99 108 117 126 135 153 162 171 180 189 198 207 216 225" y="190" fill="#DDDDDD">ReactNativeDeveloper</text>
+<text x="504" y="190" fill="#7D56F4">│</text>
+<text x="1071" y="190" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 90 99 108" y="210" fill="#979797">LumenPay</text>
+<text x="126 144 153 162 171 180 189 198 216 225" y="210" fill="#626262">·London,UK</text>
+<text x="450 459 468 477" y="210" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="210" fill="#7D56F4">│</text>
+<rect x="522" y="196" width="45" height="20" fill="#04B575"/>
+<text x="531 540 549" y="210" fill="#FFFDF5" font-weight="700">NEW</text>
+<text x="576 585 594 603 612 621 630 639 648 657 666" y="210" fill="#04B575" font-weight="700">AFRICA/EMEA</text>
+<text x="1071" y="210" fill="#7D56F4">│</text>
+<text x="504" y="230" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 603 612 621 630 639 657 666 675 684 693 702 711 720 729 738 747 756 774 783 792 801 810 819 837 855 864 873 882" y="230" fill="#626262">locationnamesAfrica/EMEA:Remote-EMEA</text>
+<text x="1071" y="230" fill="#7D56F4">│</text>
+<text x="36 45 54 63 72 81 90 99 117 126 135 144 153 162 171 180" y="250" fill="#DDDDDD">FrontendEngineer</text>
+<text x="504" y="250" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 585 594 603 612 621 630 639 648 657 666 684 702 711 720 738" y="250" fill="#626262">posted2026-11-21•fit8</text>
+<text x="1071" y="250" fill="#7D56F4">│</text>
+<text x="36 45 54 63 81 90 99 108 117 126 135 144 153" y="270" fill="#979797">KiteAnalytics</text>
+<text x="171 189 198 207 216 225 234 252 270 279 288 297 306 315" y="270" fill="#626262">·Remote-Europe</text>
+<text x="450 459 468 477" y="270" fill="#04B575" font-weight="700">EMEA</text>
+<text x="504" y="270" fill="#7D56F4">│</text>
+<text x="1071" y="270" fill="#7D56F4">│</text>
+<text x="504" y="290" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 603 612 630 639 648 657" y="290" fill="#EE6FF8">engineeringrole</text>
+<text x="1071" y="290" fill="#7D56F4">│</text>
+<text x="504" y="310" fill="#7D56F4">│</text>
+<text x="1071" y="310" fill="#7D56F4">│</text>
+<text x="504" y="330" fill="#7D56F4">│</text>
+<text x="522 531 540 558 567 576 585 594 603 612 621 639 648 657 675 684 702 711 720 738 747 756 765 774 783 801 819 828 837 846 855 873 882 891 909 918 927 936 945 954 963 972 981 990 1008 1017 1026 1035 1044" y="330" fill="#DDDDDD">OwnfeaturesendtoendacrossaReactandTypeScriptfront</text>
+<text x="1071" y="330" fill="#7D56F4">│</text>
+<text x="504" y="350" fill="#7D56F4">│</text>
+<text x="522 531 540 558 567 576 594 612 621 630 639 648 657 666 684 693 702 711 729 738 747 756 765 774 783 792 801 810 828 837 846 855 864 873 891 900 909 918 927 945 954 972 981 990 999 1008 1017" y="350" fill="#DDDDDD">endandaNode.jsAPI.Playwrighttests,CI/CDonGitHub</text>
+<text x="1071" y="350" fill="#7D56F4">│</text>
+<text x="504" y="370" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585" y="370" fill="#DDDDDD">Actions.</text>
+<text x="1071" y="370" fill="#7D56F4">│</text>
+<text x="504" y="390" fill="#7D56F4">│</text>
+<text x="1071" y="390" fill="#7D56F4">│</text>
+<text x="504" y="410" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558 567 576 585 594 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747" y="410" fill="#89F0CB" text-decoration="underline">https://jobs.example.com/1</text>
+<text x="1071" y="410" fill="#7D56F4">│</text>
+<text x="504" y="430" fill="#7D56F4">│</text>
+<text x="1071" y="430" fill="#7D56F4">│</text>
+<text x="504" y="450" fill="#7D56F4">│</text>
+<text x="522 531 540 549 558" y="450" fill="#979797">enter</text>
+<text x="576 585 594 603 621 630 648 657 666 675 684 693" y="450" fill="#626262">openinChrome</text>
+<text x="1071" y="450" fill="#7D56F4">│</text>
+<text x="504" y="470" fill="#7D56F4">│</text>
+<text x="1071" y="470" fill="#7D56F4">│</text>
+<text x="504" y="490" fill="#7D56F4">│</text>
+<text x="1071" y="490" fill="#7D56F4">│</text>
+<text x="504" y="510" fill="#7D56F4">│</text>
+<text x="1071" y="510" fill="#7D56F4">│</text>
+<text x="504" y="530" fill="#7D56F4">│</text>
+<text x="1071" y="530" fill="#7D56F4">│</text>
+<text x="504" y="550" fill="#7D56F4">│</text>
+<text x="1071" y="550" fill="#7D56F4">│</text>
+<text x="504" y="570" fill="#7D56F4">│</text>
+<text x="1071" y="570" fill="#7D56F4">│</text>
+<text x="504" y="590" fill="#7D56F4">│</text>
+<text x="1071" y="590" fill="#7D56F4">│</text>
+<text x="504 513 522 531 540 549 558 567 576 585 594 603 612 621 630 639 648 657 666 675 684 693 702 711 720 729 738 747 756 765 774 783 792 801 810 819 828 837 846 855 864 873 882 891 900 909 918 927 936 945 954 963 972 981 990 999 1008 1017 1026 1035 1044 1053 1062 1071" y="610" fill="#7D56F4">╰──────────────────────────────────────────────────────────────╯</text>
+<text x="18 27 36 45 54" y="650" fill="#979797">enter</text>
+<text x="72 81 90 99 108" y="650" fill="#626262">apply</text>
+<text x="126" y="650" fill="#3C3C3C">•</text>
+<text x="144 153 162" y="650" fill="#979797">esc</text>
+<text x="180 189 198 207 216 225" y="650" fill="#626262">cancel</text>
+<text x="243" y="650" fill="#3C3C3C">•</text>
+<text x="261 270 279 288 297 306" y="650" fill="#979797">ctrl+u</text>
+<text x="324 333 342 351 360" y="650" fill="#626262">clear</text>
+</g></svg>

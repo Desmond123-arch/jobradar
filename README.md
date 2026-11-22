@@ -1,70 +1,162 @@
 # Job Radar
 
-> Find remote AI engineering roles you can actually take — from Lagos, Africa, or anywhere with an EMEA-open board — without touching a recruiter portal.
+**Find remote and EMEA jobs across thousands of companies, in one place, from your terminal.**
 
-Job Radar reads the **free public JSON APIs** behind [Greenhouse](https://boards-api.greenhouse.io), [Lever](https://api.lever.co/v0/postings) and [Ashby](https://api.ashbyhq.com/posting-api/job-board) job boards (no API key, no sign-up). It filters to AI and engineering roles that are open to Lagos / Africa / EMEA or worldwide, hides roles you've already applied to, marks what's new since last run, scores every role for fit, and writes a self-contained `report.html`.
+Job Radar reads the job boards that companies publish themselves, keeps the roles that fit you, and shows them in a full-screen browser or a web page. It is free, needs no account or API key, and has nothing to install except Python.
 
-```
-python jobradar.py
-start report.html          # Windows
-open report.html           # macOS / Linux
-```
+> **Credit.** Job Radar started as [OsasDTEch/jobradar](https://github.com/OsasDTEch/jobradar). The idea, the job-board readers, the region check, the fit score and the first report are all from that project. This version builds on it. See [Credits](#credits).
+
+<p align="center">
+  <img src="docs/images/browse-glow.svg" alt="The full-screen job browser" width="900">
+</p>
 
 ---
 
-## Why this exists
+## Contents
 
-Most job boards are built around the assumption you're already in San Francisco or London. This one starts from the other end: given a list of companies whose APIs I can hit for free, what's actually open to me? It won't apply for you — it just surfaces the signal.
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Three ways to look at your results](#three-ways-to-look-at-your-results)
+- [Make it yours: settings](#make-it-yours-settings)
+- [Find more jobs](#find-more-jobs)
+- [How it decides what to show](#how-it-decides-what-to-show)
+- [Themes](#themes)
+- [Command line cheat sheet](#command-line-cheat-sheet)
+- [Windows and PowerShell](#windows-and-powershell)
+- [Troubleshooting](#troubleshooting)
+- [Run it every morning](#run-it-every-morning)
+- [Files in this project](#files-in-this-project)
+- [Contributing and tests](#contributing-and-tests)
+- [Credits](#credits)
+- [License](#license)
+
+---
+
+## What it does
+
+1. **Collects jobs** from the public job boards behind [Greenhouse](https://boards-api.greenhouse.io), [Lever](https://api.lever.co/v0/postings) and [Ashby](https://api.ashbyhq.com/posting-api/job-board), plus the job sites Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News "Who is hiring?".
+2. **Keeps the ones that fit you.** You choose the kind of role, the region, and how far back to look. Roles you have applied to, and companies you have ruled out, never show up.
+3. **Scores them against your CV**, so you can see which roles match the skills you actually have.
+4. **Shows you what is new** since the last time you looked.
+
+It never applies for anything. It only finds and sorts.
 
 ---
 
 ## Quick start
 
-**Requirements:** Python 3.10+. No third-party packages.
+You need **Python 3.10 or newer**. Nothing else.
+
+**1. Get the code**
 
 ```bash
-git clone https://github.com/OsasDTEch/jobradar.git
+git clone https://github.com/Desmond123-arch/jobradar.git
 cd jobradar
-
-# verify everything works
-python -m unittest -v          # 13 tests → OK
-
-# first run
-python jobradar.py
 ```
 
-Open `report.html`. Run it again tomorrow and new roles are marked **NEW**.
+**2. Start it**
+
+```bash
+python cli.py
+```
+
+On macOS and Linux you may need `python3` instead of `python`.
+
+**3. Answer a few questions.** The first time, it asks about your CV, the roles you want, your region and your colors. You can change every answer later.
+
+<p align="center">
+  <img src="docs/images/menu.svg" alt="The main menu" width="560">
+</p>
+
+**4. Choose "Search for jobs".** It asks a few more things, then runs. A progress bar shows how far along it is. When it finishes, choose **Browse the last results**.
+
+That is all. Run it again tomorrow and anything new is marked **NEW**.
+
+> **Reading a PDF CV** needs one small add-on: `pip install pypdf`. Word (`.docx`) and text (`.txt`) CVs need nothing.
 
 ---
 
-## How it works
+## Three ways to look at your results
 
-```
-companies.txt  ──►  fetch each board's public API
-                        │
-                   filter: AI/engineering title only
-                   filter: posted within --days (default 30)
-                   filter: not in applied.txt
-                   filter: not in exclude.txt
-                        │
-                   classify region:
-                     africa-emea  ✅  (location says Africa / Nigeria / EMEA)
-                     worldwide    ✅  (says "anywhere" and description agrees)
-                     unclear      ⚠️  (says Remote, no region — read the posting)
-                     restricted   ✗   (Remote - US only, etc.)
-                     onsite       ✗   (no remote, not in Africa)
-                        │
-                   score for fit  (AI title + skill keyword matches)
-                   mark new vs seen
-                        │
-                   report.html  +  jobs.json  +  seen.json
-```
+### 1. The full-screen browser
+
+Choose **Browse the last results** in the menu, or run `python cli.py browse`. Move with the arrow keys, and press **Enter** to open the posting in your browser.
+
+<p align="center">
+  <img src="docs/images/filter.svg" alt="Filtering the list by typing" width="900">
+</p>
+
+| Key | What it does |
+|-----|--------------|
+| `↑` `↓` (or `j` `k`) | Move. `PgUp` `PgDn` to page, `g` `G` for top and bottom |
+| `Enter` | **Open the posting in your browser** |
+| `/` | Filter as you type. Several words must all match. `"in quotes"` keeps a phrase. `-word` leaves a word out |
+| `r` | Cycle the region: Africa/EMEA, EMEA, Worldwide, Check location |
+| `n` | Show only new roles |
+| `s` | Cycle the sort: best match, fit score, newest, company |
+| `a` | Mark as applied. It is saved and hidden from now on |
+| `x` | Exclude this company for good |
+| `t` | Change the color theme |
+| `c` | Clear all filters |
+| `d` | Hide or show the details panel (it needs a wide window) |
+| `?` | Show every key |
+| `Esc` | Clear the filters, then quit. `q` quits straight away |
+
+### 2. The web report
+
+Every search writes **`report.html`**: a page you open in any browser, with search, filters, sorting and a card or table view. Roles show a **CV %** badge when you have set a CV. Turn on **Open report after run** in Settings and it opens by itself when a search finishes.
+
+<p align="center">
+  <img src="docs/images/report.png" alt="The web report" width="760">
+</p>
+
+### 3. Plain data
+
+`jobs.json` holds the same roles as data, if you want to sort or filter them with your own tools.
 
 ---
 
-## Adding companies
+## Make it yours: settings
 
-Paste the careers page URL into `companies.txt`, one per line:
+Choose **Settings** in the menu, or run `python cli.py settings`. Everything is saved to a file called `settings.json`, so you never have to edit it by hand.
+
+<p align="center">
+  <img src="docs/images/settings.svg" alt="The settings screen" width="640">
+</p>
+
+| Setting | What it does | Choices |
+|---------|--------------|---------|
+| **CV file** | Your CV. Jobs are scored against the skills in it, and the role filter follows them | Pick from the list it finds, or paste a path |
+| **Roles** | Which job titles to keep | AI and engineering · match my CV · web and software · every role |
+| **Region** | Where the job can be | Africa and worldwide remote · all of EMEA |
+| **Companies** | How wide to search | `companies.txt` only · plus job sites · every board it can find |
+| **Drop senior titles** | Hide senior, staff, lead and manager roles | yes / no |
+| **Show locked roles** | Also show roles limited to places you cannot work from | yes / no |
+| **Look back (days)** | How old a posting can be | 1 to 365, default 30 |
+| **Browser** | Which browser opens links | automatic, `chrome`, `default`, or your own command |
+| **Color theme** | The look of the terminal screens | [seven themes](#themes) |
+| **Open report after run** | Open `report.html` when a search finishes | yes / no |
+
+**Choosing your CV.** The picker looks for files with "cv" or "resume" in the name in this folder, your home folder, Downloads, Documents and Desktop (and the Windows side if you use WSL), newest first. Pick one, or paste a path. Windows paths such as `C:\Users\me\Downloads\cv.pdf` work. It reads the file straight away and shows the skills it found, so you know it worked.
+
+**Good to know.**
+- Anything you type on the command line beats the settings file. `--no-settings` ignores the file for one run.
+- A missing or wrong value falls back to the default. A typo cannot stop a search.
+- `settings.example.json` shows what the file looks like.
+
+---
+
+## Find more jobs
+
+Job Radar searches in three layers. Use as many as you like.
+
+| Layer | What it covers | How to use it |
+|-------|----------------|---------------|
+| **Your list** | The companies in `companies.txt` | Paste a careers-page URL per line, or choose **Add a company** in the menu |
+| **Job sites** | Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News | Settings → Companies → *plus job sites* |
+| **Every board** | Thousands of companies, found for you | Settings → Companies → *every board* |
+
+**Adding a company by hand.** Open `companies.txt` and add one line per company. The part after `|` is optional.
 
 ```
 https://jobs.ashbyhq.com/somecompany | Some Company
@@ -72,103 +164,191 @@ https://jobs.lever.co/othercompany
 https://job-boards.greenhouse.io/thirdcompany
 ```
 
-The `| Name` part is optional display text. Lines starting with `#` are comments.
+To find the right address, open a job posting and click Apply. If the address starts with `jobs.ashbyhq.com`, `jobs.lever.co` or `job-boards.greenhouse.io`, that is the one.
 
-**How to find the right URL:** open a job posting on [ycombinator.com/jobs](https://www.ycombinator.com/jobs), [hnhiring.com](https://hnhiring.com/locations/remote), [startup.jobs](https://startup.jobs) or a company's own careers page. If the Apply button takes you to an address starting with `jobs.ashbyhq.com`, `jobs.lever.co` or `job-boards.greenhouse.io`, copy that domain + slug into `companies.txt`. Wrong slugs show up under "Boards that failed" in the report.
+**"Every board" explained.** None of the three platforms lets you search all their companies at once, so Job Radar finds company names from the Internet Archive's record of their pages, then checks each one. Many guesses are not real boards, and those are skipped quietly. The first scan takes a few minutes. After that the list is saved for 30 days.
+
+**Keep track.** Add a line to `applied.txt` as `Company | Job title`, or press `a` in the browser, and that role never appears again. Add a company name to `exclude.txt`, or press `x`, to skip it completely.
 
 ---
 
-## Tracking applications
-
-Every time you apply, add one line to `applied.txt`:
+## How it decides what to show
 
 ```
-Company Name | Job title
+ your list ─┐
+ job sites ─┼─►  collect jobs  ─►  keep roles that fit  ─►  check the place  ─►  score  ─►  show
+ all boards ┘                       (title, how recent,       (is it open to      (skills
+                                    not applied/excluded)     your region?)       on your CV)
 ```
 
-That role won't appear in future runs.
+Each role gets a label for where it can be done:
+
+| Label | Meaning |
+|-------|---------|
+| **Open to Africa / EMEA** | The location names Africa, Nigeria, EMEA or a nearby place |
+| **EMEA** | Located somewhere in Europe, the Middle East or Africa |
+| **Worldwide** | Says "anywhere" and the description agrees |
+| **Check location** | Says "Remote" with no region. Read the posting |
+| *Region locked, On-site* | Hidden unless you turn on **Show locked roles** |
+
+Labels come from the posting's own words and can be wrong. Open the posting and check before you apply.
+
+**Progress.** A long search shows a live bar for each step, with a count and a time estimate.
+
+<p align="center">
+  <img src="docs/images/progress.svg" alt="The progress bar" width="780">
+</p>
 
 ---
 
-## Excluding companies
+## Themes
 
-Add a company name to `exclude.txt` (one per line) to skip it entirely — useful for companies you've ruled out or that only post roles you can't take.
+Seven color themes. The default, **Glow**, uses the colors from [Charm's Glow](https://github.com/charmbracelet/glow). Change theme in Settings, or press `t` while browsing and the whole screen changes on the spot. Your pick is remembered.
+
+<table>
+  <tr>
+    <td><img src="docs/images/browse-catppuccin.svg" alt="Catppuccin Mocha" width="440"><br><sub>Catppuccin Mocha</sub></td>
+    <td><img src="docs/images/browse-tokyonight.svg" alt="Tokyo Night" width="440"><br><sub>Tokyo Night</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/browse-dracula.svg" alt="Dracula" width="440"><br><sub>Dracula</sub></td>
+    <td><img src="docs/images/browse-rosepine.svg" alt="Rosé Pine" width="440"><br><sub>Rosé Pine</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/browse-gruvbox.svg" alt="Gruvbox Dark" width="440"><br><sub>Gruvbox Dark</sub></td>
+    <td><img src="docs/images/browse-nord.svg" alt="Nord" width="440"><br><sub>Nord</sub></td>
+  </tr>
+</table>
+
+Run `python cli.py themes` to see all seven side by side in your browser, using your own results. A terminal can only show 256 colors, so each theme is the closest match and looks a touch different from these pictures.
 
 ---
 
-## Command-line options
+## Command line cheat sheet
 
-| Flag | Default | Effect |
-|------|---------|--------|
-| `--days N` | 30 | Include roles posted within the last N days |
-| `--all` | off | Also show region-locked and on-site roles |
-| `--out PATH` | `report.html` | Write the report to a different path |
-
----
-
-## Running the tests
+Most people never need these, because the menu and settings cover them. They are here for scripts and for people who like flags.
 
 ```bash
-python -m unittest -v
+python jobradar.py                   # search using your saved settings
+python jobradar.py --emea --days 7   # EMEA roles from the last week
+python jobradar.py --everything      # all roles in EMEA, from every board and job site
+python jobradar.py --open            # open report.html when it finishes
 ```
 
-13 tests cover parsing, filtering, region classification, scoring, the applied/excluded logic, and HTML rendering. They use fixture data and never hit the network.
+| Flag | Effect |
+|------|--------|
+| `--days N` | Look back N days (default 30) |
+| `--roles ai\|cv\|web` | Which titles to keep. `cv` follows the skills on your CV. `web` is backend, frontend, full-stack and software engineer |
+| `--any-role` | Keep every kind of role |
+| `--emea` | Keep roles located anywhere in Europe, the Middle East or Africa |
+| `--no-senior` | Drop senior, staff, principal, lead and manager titles |
+| `--all` | Also show region-locked and on-site roles |
+| `--discover` | Also read every board found by discovery |
+| `--refresh-discovery` | Scan for boards again now, instead of using the saved list |
+| `--aggregators` | Also read the job sites |
+| `--agg-pages N` | Pages to read per job site (default 5) |
+| `--cv PATH` / `--no-cv` | Score against this CV / ignore any CV |
+| `--everything` | Same as `--discover --aggregators --emea --any-role` |
+| `--open` | Open the report in your browser when done |
+| `--workers N` | Parallel requests (default 16) |
+| `--out PATH` | Write the report somewhere else |
+| `--no-settings` | Ignore `settings.json` for this run |
+
+The menu has shortcuts too: `python cli.py browse`, `settings`, `themes`, and `--plain` for simple numbered questions instead of the full-screen menu.
 
 ---
 
-## Automated daily run (GitHub Actions)
+## Windows and PowerShell
 
-The included workflow (`.github/workflows/radar.yml`) runs every morning at **06:37 Lagos time**, runs the tests, fetches all boards, and commits a fresh `report.html` and `jobs.json` back to the repo. You can also trigger it manually from the Actions tab.
+Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 
-> **Keep your fork private.** `applied.txt` contains your application history and `seen.json` / `report.html` contain the results. None of that should be public.
-
-To enable it:
-
-1. Fork or clone this repo into your own **private** GitHub repo.
-2. Push your `companies.txt` and (optionally) `applied.txt`.
-3. The workflow runs automatically — no secrets needed beyond the default `GITHUB_TOKEN`.
-
----
-
-## File reference
-
-| File | Purpose |
-|------|---------|
-| `jobradar.py` | Main script. Run directly or import in tests. |
-| `companies.txt` | One careers-page URL per line. Edit this. |
-| `applied.txt` | Roles you've applied to. `Company \| Title` per line. |
-| `exclude.txt` | Company names to skip entirely. |
-| `seen.json` | Auto-generated. Tracks which roles have been shown before. |
-| `jobs.json` | Auto-generated. Last run's matching roles as JSON. |
-| `report.html` | Auto-generated. The human-readable report. |
-| `tests/test_jobradar.py` | 13 unit tests. No network calls. |
-| `.github/workflows/radar.yml` | Daily GitHub Actions run. |
+- **Start it** with `python cli.py`.
+- **Full-screen mode.** Windows Python does not include the screen library the full-screen browser uses. Either run `pip install windows-curses` to get it, or do nothing: **Browse** then opens the web report in your browser instead, which has the same search and filters.
+- **Auto-open.** Turn on **Open report after run** in Settings and the report opens in Chrome (or your default browser) when a search finishes.
+- **The loader** works in Windows Terminal and PowerShell. On an old console that cannot show block characters it draws a plain `####----` bar instead of failing.
+- **WSL users.** Links open in your Windows Chrome automatically.
+- **Which browser opens.** Leave it on *automatic*, or set **Browser** in Settings to `chrome`, `default`, or a command. `python openurl.py` shows what it picked.
 
 ---
 
-## Contributing
+## Troubleshooting
 
-Pull requests are welcome. A few ground rules:
+**"No matching roles."** Widen the net: raise **Look back (days)**, turn on **Show locked roles**, switch **Roles** to *every role*, or set **Companies** to *every board*.
 
-- All 13 tests must still pass: `python -m unittest -v`
-- Don't add third-party dependencies — the zero-install design is intentional.
-- If you add a new board provider, add fixture tests for it in the same style as the Greenhouse / Lever / Ashby tests.
-- Region classification is intentionally conservative. If you think a role should be shown to Lagos-based candidates, the right fix is a test that proves the new rule is correct.
+**"It can't read my PDF."** Run `pip install pypdf`. Or save your CV as a `.docx` or `.txt` file.
+
+**"The first search is very slow."** That is the one-time scan of thousands of boards. It is saved for 30 days, and later searches are much faster.
+
+**"Pressing Enter does nothing."** Your browser setting may be wrong. Open Settings and set **Browser** to `default`.
+
+**"The colors look wrong."** Try another theme, or use a terminal with 256 colors. Windows Terminal, iTerm2, GNOME Terminal and most others have them.
+
+**"I see odd characters instead of a progress bar."** Set the environment variable `NO_COLOR=1` for plain lines.
+
+**"I want to start fresh."** Delete `seen.json` to forget what you have seen, and `settings.json` to go through setup again.
 
 ---
 
-## Supported job board APIs
+## Run it every morning
 
-| Provider | API base | Slug source |
-|----------|----------|-------------|
-| Greenhouse | `https://boards-api.greenhouse.io/v1/boards/{slug}/jobs` | URL after `job-boards.greenhouse.io/` |
-| Lever | `https://api.lever.co/v0/postings/{slug}?mode=json` | URL after `jobs.lever.co/` |
-| Ashby | `https://api.ashbyhq.com/posting-api/job-board/{slug}` | URL after `jobs.ashbyhq.com/` |
+The included workflow (`.github/workflows/radar.yml`) runs on GitHub every day at 06:37, runs the tests, fetches the boards and saves a fresh `report.html` and `jobs.json` back to your repository.
 
-All three are public, unauthenticated, and officially documented by their providers.
+> **Keep your copy private.** The results and your `applied.txt` are personal.
+
+1. Make your own **private** copy of this repository on GitHub.
+2. Push your `companies.txt` and, if you like, `applied.txt`.
+3. The workflow starts by itself. It needs no secrets.
+
+Your `settings.json` stays on your computer, so the daily run uses the standard settings. To change them, add flags to the `python jobradar.py` line in the workflow file.
+
+---
+
+## Files in this project
+
+| File | What it is |
+|------|------------|
+| `cli.py` | The menu. Start here |
+| `tui.py` | The full-screen browser and the arrow-key menus |
+| `jobradar.py` | The search itself. Also runs on its own |
+| `settings.py` | Reads and writes your settings, finds your CV |
+| `cvmatch.py` | Reads your CV and scores jobs against it |
+| `openurl.py` | Opens links in the right browser |
+| `companies.txt` | Companies to search. Yours to edit |
+| `applied.txt` | Roles you applied to. One `Company \| Title` per line |
+| `exclude.txt` | Companies to skip |
+| `settings.json` | Your settings. Not shared |
+| `settings.example.json` | A starting copy |
+| `report.html`, `jobs.json`, `seen.json`, `discovered.json` | Created for you. Not shared |
+| `docs/images/` | The pictures in this README |
+| `tests/` | The tests |
+
+---
+
+## Contributing and tests
+
+Pull requests are welcome. Please:
+
+- Keep it **free of extra installs**. The project uses only what comes with Python (PDF reading is optional).
+- Add a test with any change. The tests use made-up data and never touch the network.
+- If you add a new job board, add test data for it like the Greenhouse, Lever and Ashby ones.
+
+Run the tests:
+
+```bash
+python -m unittest
+```
+
+---
+
+## Credits
+
+- **[OsasDTEch](https://github.com/OsasDTEch)** created Job Radar. The original project is at **https://github.com/OsasDTEch/jobradar**. The idea, the Greenhouse, Lever and Ashby readers, the Africa and EMEA region check, the fit score, the applied and excluded lists, and the first report all come from there.
+- **[Desmond Opoku Mends](https://github.com/Desmond123-arch)** built this version on top of it: searching every company, the job sites, EMEA mode, role presets, CV matching, the menu and full-screen browser, themes, settings, the progress bar and Windows support.
+- The look of the terminal screens follows [Charm](https://charm.sh)'s [Glow](https://github.com/charmbracelet/glow) and [gum](https://github.com/charmbracelet/gum). The color themes come from [Catppuccin](https://catppuccin.com), [Tokyo Night](https://github.com/folke/tokyonight.nvim), [Dracula](https://draculatheme.com), [Rosé Pine](https://rosepinetheme.com), [Gruvbox](https://github.com/morhetz/gruvbox) and [Nord](https://www.nordtheme.com).
+- Jobs come from the public job-board pages of Greenhouse, Lever and Ashby, and from Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News. Company names are found with the help of the Internet Archive.
 
 ---
 
 ## License
 
-MIT. Do whatever you want with it. If you find a job through it, that'd be nice to hear.
+MIT, the license named in the original project's README. If you share this project, please keep the credit to the original author.

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="612" height="334" viewBox="0 0 612 334" role="img" aria-label="python cli.py">
+<rect width="612" height="334" rx="12" fill="#161616"/>
+<path d="M0 12a12 12 0 0 1 12-12h588a12 12 0 0 1 12 12v26H0z" fill="#ffffff" fill-opacity="0.06"/>
+<circle cx="24" cy="19" r="6" fill="#ff5f57"/>
+<circle cx="44" cy="19" r="6" fill="#febc2e"/>
+<circle cx="64" cy="19" r="6" fill="#28c840"/>
+<text x="306" y="24" text-anchor="middle" font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="13" fill="#DDDDDD" fill-opacity="0.55">python cli.py</text>
+<g font-family="'Cascadia Mono','SF Mono',Menlo,Consolas,'DejaVu Sans Mono','Liberation Mono',monospace" font-size="15" text-rendering="geometricPrecision">
+<rect x="18" y="56" width="99" height="20" fill="#EE6FF8"/>
+<text x="27 36 45 63 72 81 90 99" y="70" fill="#ECFD65" font-weight="700">JobRadar</text>
+<text x="18 27 36 45 63 72 81 90" y="110" fill="#EE6FF8">Whatnow?</text>
+<text x="18" y="150" fill="#AD58B4" font-weight="700">&gt;</text>
+<text x="36 45" y="150" fill="#3C3C3C">1.</text>
+<text x="63 72 81 90 99 108 126 135 144 162 171 180 189" y="150" fill="#EE6FF8" font-weight="700">Searchforjobs</text>
+<text x="36 45" y="170" fill="#3C3C3C">2.</text>
+<text x="63 72 81 90 99 108 126 135 144 162 171 180 189 207 216 225 234 243 252 261" y="170" fill="#DDDDDD">Browsethelastresults</text>
+<text x="36 45" y="190" fill="#3C3C3C">3.</text>
+<text x="63 72 81 99 117 126 135 144 153 162 171" y="190" fill="#DDDDDD">Addacompany</text>
+<text x="36 45" y="210" fill="#3C3C3C">4.</text>
+<text x="63 72 81 90 108 117 126 135 144 153 162 171 180 189 198" y="210" fill="#DDDDDD">Openreport.html</text>
+<text x="36 45" y="230" fill="#3C3C3C">5.</text>
+<text x="63 72 81 90 99 108 117 126" y="230" fill="#DDDDDD">Settings</text>
+<text x="36 45" y="250" fill="#3C3C3C">6.</text>
+<text x="63 72 81 90" y="250" fill="#DDDDDD">Quit</text>
+<text x="18 27 36" y="290" fill="#979797">↑/↓</text>
+<text x="54 63 72 81" y="290" fill="#626262">move</text>
+<text x="99" y="290" fill="#3C3C3C">•</text>
+<text x="117 126 135 144 153" y="290" fill="#979797">enter</text>
+<text x="171 180 189 198 207 216" y="290" fill="#626262">select</text>
+<text x="234" y="290" fill="#3C3C3C">•</text>
+<text x="252 261 270" y="290" fill="#979797">esc</text>
+<text x="288 297 306 315 324 333" y="290" fill="#626262">cancel</text>
+</g></svg>
