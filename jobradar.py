@@ -39,11 +39,13 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import paths
+
 import cvmatch
 import openurl
 import settings
 
-HERE = Path(__file__).resolve().parent
+HERE = paths.data_dir()  # your files; see paths.py
 UA = "jobradar/1.0 (personal job search)"
 
 # ---------------------------------------------------------------- progress

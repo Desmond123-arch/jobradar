@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobradar"
+version = "0.1.0"
+description = "Find remote jobs you can actually take, straight from companies' own job boards."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "OsasDTEch" }, { name = "Desmond Opoku Mends" }]
+dependencies = []  # standard library only; the extras below are optional
+
+[project.optional-dependencies]
+pdf = ["pypdf"]                                          # read PDF CVs
+windows = ["windows-curses; platform_system == 'Windows'"]  # full-screen browser on Windows
+all = ["pypdf", "windows-curses; platform_system == 'Windows'"]
+
+[project.scripts]
+jobradar = "entry:menu"
+jobradar-search = "entry:search"
+jobradar-cv = "entry:cv"
+
+[project.urls]
+Homepage = "https://github.com/Desmond123-arch/jobradar"
+
+[tool.setuptools]
+py-modules = ["jobradar", "cli", "tui", "settings", "openurl", "cvmatch", "paths", "entry"]
+
+# Starter files, copied into ~/.jobradar on first run (see paths.py).
+[tool.setuptools.data-files]
+"share/jobradar" = ["companies.txt", "exclude.txt", "settings.example.json"]

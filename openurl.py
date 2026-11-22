@@ -22,7 +22,9 @@ import sys
 import webbrowser
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+import paths
+
+HERE = paths.data_dir()  # your files; see paths.py
 WSL_CHROME = [
     "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe",
     "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",

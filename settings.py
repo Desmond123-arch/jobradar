@@ -23,7 +23,9 @@ import os
 import re
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+import paths
+
+HERE = paths.data_dir()  # your files; see paths.py
 FILE = HERE / "settings.json"
 
 DEFAULTS = {"cv": "", "roles": "ai", "region": "lagos", "sources": "list", "no_senior": False,

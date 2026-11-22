@@ -47,7 +47,25 @@ It never applies for anything. It only finds and sorts.
 
 You need **Python 3.10 or newer**. Nothing else.
 
-**1. Get the code**
+**1. Install it.** Pick one way.
+
+The easiest is [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/). Either one installs Job Radar as a command, in its own space, so it can't clash with anything else on your computer:
+
+```bash
+pipx install "jobradar[pdf] @ git+https://github.com/Desmond123-arch/jobradar.git"
+# or
+uv tool install "jobradar[pdf] @ git+https://github.com/Desmond123-arch/jobradar.git"
+```
+
+`[pdf]` adds PDF CV reading. On Windows, use `[all]` to also get the full-screen browser. To update later, run `pipx upgrade jobradar` or `uv tool upgrade jobradar`. To remove it, run `pipx uninstall jobradar` or `uv tool uninstall jobradar`.
+
+Don't have pipx or uv? Plain `pip` works too, ideally inside a virtual environment:
+
+```bash
+pip install "jobradar[pdf] @ git+https://github.com/Desmond123-arch/jobradar.git"
+```
+
+Or get the code and run it from the folder:
 
 ```bash
 git clone https://github.com/Desmond123-arch/jobradar.git
@@ -57,10 +75,13 @@ cd jobradar
 **2. Start it**
 
 ```bash
-python cli.py
+jobradar            # if you installed it
+python cli.py       # if you're running it from the folder
 ```
 
-On macOS and Linux you may need `python3` instead of `python`.
+On macOS and Linux you may need `python3` instead of `python`. An installed copy also has `jobradar-search`, which does the same as `python jobradar.py` and takes the same flags, and `jobradar-cv cv.pdf`, which lists the skills found in your CV.
+
+**Where your files live.** Run from the folder, everything stays in the folder, as before. Installed, your company list, settings, results and report live in `~/.jobradar` (`C:\Users\you\.jobradar` on Windows). The first run copies the starter company list there. To use a different folder, set `JOBRADAR_HOME`.
 
 **3. Answer a few questions.** The first time, it asks about your CV, the roles you want, your region and your colors. You can change every answer later.
 
@@ -72,7 +93,7 @@ On macOS and Linux you may need `python3` instead of `python`.
 
 That is all. Run it again tomorrow and anything new is marked **NEW**.
 
-> **Reading a PDF CV** needs one small add-on: `pip install pypdf`. Word (`.docx`) and text (`.txt`) CVs need nothing.
+> **Reading a PDF CV** needs one small add-on, `pypdf`. Installing with `[pdf]` as above already includes it; from a folder, run `pip install pypdf`. Word (`.docx`) and text (`.txt`) CVs need nothing.
 
 ---
 
@@ -203,7 +224,7 @@ Labels come from the posting's own words and can be wrong. Open the posting and 
 
 ## Themes
 
-Seven color themes. The default, **Glow**, uses the colors from [Charm's Glow](https://github.com/charmbracelet/glow). Change theme in Settings, or press `t` while browsing and the whole screen changes on the spot. Your pick is remembered.
+Seven color themes. The default, **Glow**, uses the colors from [Charm's Glow](https://github.com/charmbracelet/glow). Choose **Color theme** in Settings and the screen changes to each theme as you move over it, with a small sample list underneath, so you can see it before you decide. `Enter` keeps it and `Esc` puts the old one back. You can also press `t` while browsing to flip through them. Your pick is remembered.
 
 <table>
   <tr>
@@ -262,8 +283,8 @@ The menu has shortcuts too: `python cli.py browse`, `settings`, `themes`, and `-
 
 Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 
-- **Start it** with `python cli.py`.
-- **Full-screen mode.** Windows Python does not include the screen library the full-screen browser uses. Either run `pip install windows-curses` to get it, or do nothing: **Browse** then opens the web report in your browser instead, which has the same search and filters.
+- **Install it** with `pipx install "jobradar[all] @ git+https://github.com/Desmond123-arch/jobradar.git"` (the `[all]` includes the full-screen library and PDF reading), then start it with `jobradar`. Or run it from the folder with `python cli.py`.
+- **Full-screen mode.** Windows Python does not include the screen library the full-screen browser uses. `[all]` adds it. From a folder, run `pip install windows-curses`. Or do nothing: **Browse** then opens the web report in your browser instead, which has the same search and filters.
 - **Auto-open.** Turn on **Open report after run** in Settings and the report opens in Chrome (or your default browser) when a search finishes.
 - **The loader** works in Windows Terminal and PowerShell. On an old console that cannot show block characters it draws a plain `####----` bar instead of failing.
 - **WSL users.** Links open in your Windows Chrome automatically.
@@ -275,7 +296,11 @@ Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 
 **"No matching roles."** Widen the net: raise **Look back (days)**, turn on **Show locked roles**, switch **Roles** to *every role*, or set **Companies** to *every board*.
 
-**"It can't read my PDF."** Run `pip install pypdf`. Or save your CV as a `.docx` or `.txt` file.
+**"`jobradar` is not recognized" or "command not found".** pipx and uv put commands in a folder your terminal may not know yet. Run `pipx ensurepath` (or `uv tool update-shell`), then open a new terminal window. Until then, `python cli.py` from the folder always works.
+
+**"Where did my settings and results go?"** An installed copy keeps them in `~/.jobradar` (`C:\Users\you\.jobradar` on Windows), not in the folder you ran it from. The path of `report.html` is printed at the end of every search, so you can see the exact folder there.
+
+**"It can't read my PDF."** Run `pip install pypdf` (or reinstall with `[pdf]`). Or save your CV as a `.docx` or `.txt` file.
 
 **"The first search is very slow."** That is the one-time scan of thousands of boards. It is saved for 30 days, and later searches are much faster.
 
@@ -313,6 +338,9 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `settings.py` | Reads and writes your settings, finds your CV |
 | `cvmatch.py` | Reads your CV and scores jobs against it |
 | `openurl.py` | Opens links in the right browser |
+| `paths.py` | Decides where your files live: the folder, or `~/.jobradar` when installed |
+| `entry.py` | The commands `jobradar`, `jobradar-search` and `jobradar-cv` |
+| `pyproject.toml` | What makes it installable with pipx, uv or pip |
 | `companies.txt` | Companies to search. Yours to edit |
 | `applied.txt` | Roles you applied to. One `Company \| Title` per line |
 | `exclude.txt` | Companies to skip |
@@ -332,19 +360,19 @@ Pull requests are welcome. Please:
 - Add a test with any change. The tests use made-up data and never touch the network.
 - If you add a new job board, add test data for it like the Greenhouse, Lever and Ashby ones.
 
-Run the tests:
+Run the tests from the project folder:
 
 ```bash
 python -m unittest
 ```
+
+To work on it as an installed command that follows your edits, run `pip install -e ".[all]"`.
 
 ---
 
 ## Credits
 
 - **[OsasDTEch](https://github.com/OsasDTEch)** created Job Radar. The original project is at **https://github.com/OsasDTEch/jobradar**. The idea, the Greenhouse, Lever and Ashby readers, the Africa and EMEA region check, the fit score, the applied and excluded lists, and the first report all come from there.
-- **[Desmond Opoku Mends](https://github.com/Desmond123-arch)** built this version on top of it: searching every company, the job sites, EMEA mode, role presets, CV matching, the menu and full-screen browser, themes, settings, the progress bar and Windows support.
-- The look of the terminal screens follows [Charm](https://charm.sh)'s [Glow](https://github.com/charmbracelet/glow) and [gum](https://github.com/charmbracelet/gum). The color themes come from [Catppuccin](https://catppuccin.com), [Tokyo Night](https://github.com/folke/tokyonight.nvim), [Dracula](https://draculatheme.com), [Rosé Pine](https://rosepinetheme.com), [Gruvbox](https://github.com/morhetz/gruvbox) and [Nord](https://www.nordtheme.com).
 - Jobs come from the public job-board pages of Greenhouse, Lever and Ashby, and from Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News. Company names are found with the help of the Internet Archive.
 
 ---
