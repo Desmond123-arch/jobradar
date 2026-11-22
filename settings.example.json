@@ -1,0 +1,11 @@
+{
+  "cv": "/home/you/Documents/my_cv.pdf",
+  "roles": "cv",
+  "region": "emea",
+  "sources": "all",
+  "no_senior": false,
+  "show_all": false,
+  "days": 30,
+  "browser": "",
+  "theme": "glow"
+}

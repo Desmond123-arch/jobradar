@@ -38,3 +38,10 @@ desktop.ini
 
 # --- Kiro IDE ---
 .kiro/
+discovered.json
+settings.json
+
+# --- Your CV (personal data) ---
+cv.*
+resume.*
+themes.html

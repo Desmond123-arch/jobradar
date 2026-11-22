@@ -1,0 +1,506 @@
+"""Interactive menu for jobradar. Run:  python cli.py
+
+  1  Search        answer a few questions, jobradar runs with the matching flags
+  2  Browse        full-screen list of the last results: filter, sort, press Enter to open a posting
+  3  Add company   paste a careers URL into companies.txt
+  4  Open report   open report.html in your browser
+  5  Settings      your CV, roles, region, companies, days, browser, theme and auto-open
+
+  python cli.py browse    go straight to the full-screen browser
+  python cli.py settings  go straight to settings
+  python cli.py themes    preview every color theme in your browser
+  python cli.py --plain   plain prompts instead of the full-screen interface
+
+In a terminal it uses arrow-key menus and a full-screen browser (see tui.py). Piped or without curses it falls
+back to numbered prompts. Links open in Windows Chrome from WSL (see openurl.py). No third-party packages.
+"""
+
+import json
+import math
+import shlex
+import sys
+from pathlib import Path
+
+import cvmatch
+import jobradar as jr
+import openurl
+import settings
+
+PAGE = 10
+REGION_TAG = {"africa-emea": "AFRICA/EMEA", "emea": "EMEA", "worldwide": "WORLDWIDE",
+              "unclear": "CHECK LOC", "restricted": "LOCKED", "onsite": "ON-SITE"}
+
+
+class Quit(Exception):
+    pass
+
+
+class Back(Exception):
+    """Esc in a full-screen menu: leave this screen."""
+
+
+class UI:
+    fancy = False
+    cv_dirs = None  # where to look for CV files; None means the usual places
+
+    def real_console(self):
+        """True when a person is typing at a terminal (not piped, not a test)."""
+        return self.inp is input and sys.stdin.isatty() and sys.stdout.isatty()
+
+    def prefers_web(self):
+        """A real console without curses (native Windows PowerShell or cmd): the HTML report is the better browser."""
+        import tui
+        return tui.curses is None and self.real_console()
+
+    def __init__(self, root=jr.HERE, inp=input, out=print, runner=jr.main, opener=None):
+        self.root, self.inp, self.out, self.runner = Path(root), inp, out, runner
+        self.opener = opener or (lambda url: openurl.open_url(url)[0])
+
+    def say(self, text=""):
+        self.out(text)
+
+    def ask(self, prompt):
+        try:
+            return self.inp(f"{prompt} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            raise Quit
+
+    def choose(self, prompt, options, default):
+        """options: [(key, label)]. Enter picks the default; a number or the key itself works."""
+        self.say(f"\n{prompt}")
+        for i, (key, label) in enumerate(options, 1):
+            self.say(f"  {i}. {label}{'  (default)' if key == default else ''}")
+        keys = [k for k, _ in options]
+        while True:
+            raw = self.ask(">").lower()
+            if not raw:
+                return default
+            if raw.isdigit() and 1 <= int(raw) <= len(keys):
+                return keys[int(raw) - 1]
+            if raw in keys:
+                return raw
+            self.say(f"  pick 1-{len(keys)}")
+
+    def yes(self, prompt, default=False):
+        raw = self.ask(f"{prompt} [{'Y/n' if default else 'y/N'}]").lower()
+        return default if not raw else raw.startswith("y")
+
+    def number(self, prompt, default):
+        while True:
+            raw = self.ask(f"{prompt} [{default}]")
+            if not raw:
+                return default
+            if raw.isdigit() and int(raw) > 0:
+                return int(raw)
+            self.say("  enter a whole number")
+
+    def path(self, name):
+        return self.root / name
+
+
+class FancyUI(UI):
+    """Same questions, but as arrow-key menus (gum style)."""
+    fancy = True
+
+    def choose(self, prompt, options, default):
+        import tui
+        picked = tui.run_select("Job Radar", prompt, options, default)
+        if picked is None:
+            raise Back
+        return picked
+
+    def yes(self, prompt, default=False):
+        return self.choose(prompt, [("y", "Yes"), ("n", "No")], "y" if default else "n") == "y"
+
+
+# ---------------------------------------------------------------- search
+
+def build_args(ui, s):
+    """Ask the search questions, starting from the saved settings. Returns (jobradar flags, the chosen values)."""
+    def opts(key, which=1):
+        return [(v, row[which]) for row in settings.OPTIONS[key] for v in [row[0]]]
+    role = ui.choose("Which roles?", opts("roles"), s["roles"])
+    region = ui.choose("Which regions?", opts("region"), s["region"])
+    sources = ui.choose("Which companies?", opts("sources"), s["sources"])
+    no_senior = ui.yes("Drop senior, staff, lead and manager titles?", s["no_senior"])
+    show_all = ui.yes("Also show region-locked and on-site roles?", s["show_all"])
+    days = ui.number("Posted within how many days?", s["days"])
+    chosen = dict(s, roles=role, region=region, sources=sources, no_senior=no_senior, show_all=show_all, days=days)
+    return settings.to_args(chosen), chosen
+
+
+def search(ui):
+    path = ui.path("settings.json")
+    saved = settings.load(path)
+    argv, chosen = build_args(ui, saved)
+    ui.say("\nThis is the same as:  python jobradar.py " + shlex.join(argv))
+    if not ui.yes("Run it now?", True):
+        return
+    if chosen != saved and ui.yes("Save these answers as your defaults?", False):
+        settings.save(path, chosen)
+    if "--discover" in argv and not ui.path("discovered.json").exists():
+        ui.say("First discovery scan: expect a few extra minutes while it collects company boards.")
+    ui.runner(["--no-settings"] + argv)  # the answers above are the whole story, not settings.json on top
+    if "--open" in argv and not ui.fancy:
+        return  # the report is already open in your browser
+    if ui.yes("\nBrowse the results?", True):
+        browse(ui)
+
+
+# ---------------------------------------------------------------- settings
+
+FIELDS = ["cv", "roles", "region", "sources", "no_senior", "show_all", "days", "browser", "theme", "open_report"]
+NAMES = {"cv": "CV file", "roles": "Roles", "region": "Region", "sources": "Companies", "no_senior": "Drop senior titles",
+         "show_all": "Show locked roles", "days": "Look back (days)", "browser": "Browser", "theme": "Color theme",
+         "open_report": "Open report after run"}
+
+
+def describe(key, value):
+    import tui
+    if key == "cv":
+        return Path(value).name if value else "not set (looks for cv.* next to jobradar.py)"
+    if key in settings.OPTIONS:
+        return settings.short(key, value)
+    if key in ("no_senior", "show_all", "open_report"):
+        return "yes" if value else "no"
+    if key == "browser":
+        return value or "automatic"
+    if key == "theme":
+        return tui.THEMES.get(value, tui.THEMES[tui.DEFAULT_THEME])["label"]
+    return str(value)
+
+
+def pick_cv(ui, path):
+    found = settings.find_cv_files(ui.cv_dirs)
+    current = settings.load(path)["cv"]
+    options = [(str(p), f"{p.name}   ({p.parent})") for p in found] + [("__type", "Type or paste a path"), ("__clear", "Don't use a CV")]
+    keys = [k for k, _ in options]
+    default = current if current in keys else (keys[0] if found else "__type")
+    pick = ui.choose("Which file is your CV?", options, default)
+    if pick == "__clear":
+        settings.save(path, {"cv": ""})
+        ui.say("  no CV: jobs won't be scored against one")
+        return
+    if pick == "__type":
+        pick = settings.clean_path(ui.ask("\nPath to your CV (.pdf .docx .txt .md):"))
+        if not pick:
+            return
+    if not Path(pick).is_file():
+        ui.say(f"  can't find a file at {pick}")
+        return
+    try:
+        cv = cvmatch.load(pick)
+    except Exception as exc:
+        ui.say(f"  {exc}")
+        return
+    settings.save(path, {"cv": pick})
+    ui.say(f"  read {len(cv.skills)} skills from {Path(pick).name}: {', '.join(sorted(cv.skills))}")
+
+
+def edit_one(ui, key, path):
+    s = settings.load(path)
+    if key == "cv":
+        pick_cv(ui, path)
+    elif key in settings.OPTIONS:
+        opts = [(row[0], row[1]) for row in settings.OPTIONS[key]]
+        settings.save(path, {key: ui.choose(NAMES[key], opts, s[key])})
+    elif key in ("no_senior", "show_all", "open_report"):
+        question = {"no_senior": "Drop senior, staff, lead and manager titles?", "show_all": "Also show region-locked and on-site roles?",
+                    "open_report": "Open report.html in your browser when a run finishes?"}[key]
+        settings.save(path, {key: ui.yes(question, s[key])})
+    elif key == "days":
+        settings.save(path, {"days": min(365, ui.number("Look back how many days?", s["days"]))})
+    elif key == "browser":
+        text = ui.ask("\nBrowser: chrome, default, or a command (blank = automatic):")
+        settings.save(path, {"browser": text})
+    elif key == "theme":
+        import tui
+        settings.save(path, {"theme": ui.choose("Color theme", [(k, t["label"]) for k, t in tui.THEMES.items()],
+                                                s["theme"] if s["theme"] in tui.THEMES else tui.DEFAULT_THEME)})
+
+
+def edit_settings(ui):
+    """The settings list: pick a row to change it. Saved to settings.json as you go."""
+    path = ui.path("settings.json")
+    last = "cv"
+    while True:
+        s = settings.load(path)
+        options = [(k, f"{NAMES[k]:<20}{describe(k, s[k])}") for k in FIELDS] + [("done", "Done")]
+        key = ui.choose("Settings", options, last)
+        if key == "done":
+            return
+        last = key
+        try:
+            edit_one(ui, key, path)
+        except Back:
+            pass  # Esc inside a question: back to this list
+
+
+def first_run(ui):
+    """Once, the first time in a real terminal: the questions that matter, then write every setting out."""
+    path = ui.path("settings.json")
+    ui.say("Welcome to Job Radar. A few questions to set it up. Esc skips one, and Settings changes them any time.")
+    for key in ("cv", "roles", "region", "sources", "theme", "open_report"):
+        try:
+            edit_one(ui, key, path)
+        except Back:
+            continue
+    settings.save(path, settings.load(path))
+
+
+# ---------------------------------------------------------------- browse
+
+def load_jobs(ui):
+    path = ui.path("jobs.json")
+    if not path.exists():
+        return []
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return []
+
+
+def matches(job, f):
+    if f["new"] and not job.get("new"):
+        return False
+    if f["region"] and job.get("region") != f["region"]:
+        return False
+    text = f["text"].lower()
+    if text and text not in " ".join([job.get("title", ""), job.get("company", ""), job.get("location", "")]).lower():
+        return False
+    return True
+
+
+def describe_filters(f):
+    parts = []
+    if f["text"]:
+        parts.append(f'text "{f["text"]}"')
+    if f["region"]:
+        parts.append(REGION_TAG.get(f["region"], f["region"]))
+    if f["new"]:
+        parts.append("new only")
+    return ", ".join(parts) or "none"
+
+
+def append_line(path, line):
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    sep = "" if not existing or existing.endswith("\n") else "\n"
+    path.write_text(existing + sep + line + "\n", encoding="utf-8")
+
+
+def mark_applied(ui, job):
+    append_line(ui.path("applied.txt"), f"{job['company']} | {job['title']}")
+    msg = f"saved to applied.txt: {job['company']} | {job['title']}"
+    ui.say("  " + msg)
+    return msg
+
+
+def exclude_company(ui, job):
+    known = {jr.squash(l) for l in jr.read_lines(ui.path("exclude.txt"))}
+    if jr.squash(job["company"]) not in known:
+        append_line(ui.path("exclude.txt"), job["company"])
+    msg = f"{job['company']} will be skipped from now on (exclude.txt)"
+    ui.say("  " + msg)
+    return msg
+
+
+def detail(ui, job):
+    """Show one role. Returns 'applied', 'excluded' or None."""
+    ui.say("\n" + "-" * 70)
+    ui.say(f"{job['title']}\n{job['company']} · {job.get('location') or 'no location given'}")
+    ui.say(f"{REGION_TAG.get(job.get('region'), job.get('region'))}: {job.get('region_reason', '')}")
+    ui.say(f"posted {(job.get('posted') or '?')[:10]}" + (f" · {job['pay']}" if job.get("pay") else "")
+           + f" · fit {job.get('score', 0)}" + (" · NEW" if job.get("new") else ""))
+    if job.get("why"):
+        ui.say("why: " + "; ".join(job["why"]))
+    if job.get("description"):
+        ui.say("\n" + job["description"].strip()[:400])
+    ui.say("\n" + job.get("url", ""))
+    while True:
+        cmd = ui.ask("\n[o]pen in browser · [a]pplied · [x] exclude company · [b]ack >").lower()
+        if cmd in ("b", "", "back"):
+            return None
+        if cmd == "o":
+            try:
+                ui.opener(job.get("url", ""))
+            except Exception:
+                pass
+            ui.say("  opened (or copy the link above)")
+        elif cmd == "a":
+            mark_applied(ui, job)
+            return "applied"
+        elif cmd == "x":
+            exclude_company(ui, job)
+            return "excluded"
+
+
+def browse(ui):
+    if ui.fancy:
+        return browse_fullscreen(ui)
+    if ui.prefers_web():
+        ui.say("\nOpening the interactive report in your browser: search, filter and sort there.")
+        return open_report(ui)
+    return browse_plain(ui)
+
+
+def browse_fullscreen(ui):
+    import tui
+    jobs = load_jobs(ui)
+    if not jobs:
+        ui.say("\nNo results yet. Run a search first.")
+        return
+    quiet = UI(ui.root, out=lambda text: None)
+
+    def open_job(job):
+        ok, label = openurl.open_url(job.get("url", ""))
+        return f"Opened in {label}" if ok else f"Couldn't open {label}. Link: {job.get('url', '')}"
+
+    handlers = {"open": open_job, "applied": lambda j: mark_applied(quiet, j), "exclude": lambda j: exclude_company(quiet, j)}
+    tui.run_browser(jobs, handlers, openurl.resolve(openurl.read_setting())[1])
+
+
+def browse_plain(ui):
+    jobs = load_jobs(ui)
+    if not jobs:
+        ui.say("\nNo results yet. Run a search first.")
+        return
+    f = {"text": "", "region": "", "new": False}
+    page = 0
+    while True:
+        shown = [j for j in jobs if matches(j, f)]
+        pages = max(1, math.ceil(len(shown) / PAGE))
+        page = min(page, pages - 1)
+        ui.say(f"\n{len(shown)} of {len(jobs)} roles · filters: {describe_filters(f)} · page {page + 1}/{pages}")
+        for i, j in enumerate(shown[page * PAGE:(page + 1) * PAGE], page * PAGE + 1):
+            tag = REGION_TAG.get(j.get("region"), "?")
+            ui.say(f"{i:>4}. [{tag}]{' NEW' if j.get('new') else ''} {j['company']}: {j['title']}"
+                   f"  ({(j.get('location') or '')[:40]})")
+        cmd = ui.ask("\n[number] open · [n]ext · [p]rev · [f]ilter · [q]uit >").lower()
+        if cmd in ("q", "b", "quit"):
+            return
+        if cmd == "n":
+            page = min(page + 1, pages - 1)
+        elif cmd == "p":
+            page = max(page - 1, 0)
+        elif cmd == "f":
+            sub = ui.choose("Filter by", [("text", "Text in title, company or location"), ("region", "Region"),
+                                          ("new", "New only (toggle)"), ("clear", "Clear all filters")], "text")
+            if sub == "text":
+                f["text"] = ui.ask("Text (blank to clear):")
+            elif sub == "region":
+                f["region"] = ui.choose("Region", [("", "Any")] + [(k, v.title()) for k, v in REGION_TAG.items()], "")
+            elif sub == "new":
+                f["new"] = not f["new"]
+            else:
+                f.update(text="", region="", new=False)
+            page = 0
+        elif cmd.isdigit() and 1 <= int(cmd) <= len(shown):
+            job = shown[int(cmd) - 1]
+            result = detail(ui, job)
+            if result == "applied":
+                jobs.remove(job)
+            elif result == "excluded":
+                jobs = [j for j in jobs if jr.squash(j["company"]) != jr.squash(job["company"])]
+        else:
+            ui.say("  not a command")
+
+
+# ---------------------------------------------------------------- the rest
+
+def add_company(ui):
+    line = ui.ask("\nCareers URL (Greenhouse, Lever or Ashby), optionally '| Name':")
+    if not line:
+        return
+    try:
+        c = jr.parse_company_line(line)
+    except ValueError as exc:
+        ui.say(f"  {exc}")
+        return
+    if c is None:
+        return
+    have = {(x["provider"], x["slug"].lower()) for x in (jr.parse_company_line(l) for l in jr.read_lines(ui.path("companies.txt")) if l.strip() and not l.startswith("#")) if x}
+    if (c["provider"], c["slug"].lower()) in have:
+        ui.say(f"  {c['name']} is already in companies.txt")
+        return
+    append_line(ui.path("companies.txt"), line)
+    ui.say(f"  added {c['name']} ({c['provider']}:{c['slug']})")
+
+
+def show_themes(ui):
+    """Write themes.html (every color theme, rendered with your own results) and open it."""
+    import tui
+    jobs = load_jobs(ui) or [{"title": "Backend Engineer", "company": "Acme", "location": "Berlin", "region": "emea",
+                              "region_reason": "location in EMEA: Berlin", "posted": "2026-11-05", "score": 9, "new": True,
+                              "why": ["engineering role"], "url": "https://example.com/1", "description": "Python and Go services."}]
+    path = ui.path("themes.html")
+    path.write_text(tui.theme_html(jobs), encoding="utf-8")
+    ui.say(f"wrote {path}")
+    ui.opener(openurl.file_target(path))
+    return 0
+
+
+def open_report(ui):
+    report = ui.path("report.html")
+    if not report.exists():
+        ui.say("\nNo report yet. Run a search first.")
+        return
+    ui.say(f"\n{report}")
+    try:
+        ui.opener(openurl.file_target(report))
+    except Exception:
+        pass
+
+
+def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=None, fancy=None, cv_dirs=None):
+    argv = list(argv)
+    if fancy is None:  # only a real terminal gets the full-screen interface
+        import tui
+        fancy = "--plain" not in argv and inp is input and tui.available()
+    ui = (FancyUI if fancy else UI)(root, inp, out, runner, opener)
+    ui.cv_dirs = cv_dirs
+    try:
+        if "settings" in argv:
+            edit_settings(ui)
+            return 0
+        if ui.real_console() and not ui.path("settings.json").exists():
+            first_run(ui)
+        if not fancy and ui.prefers_web():
+            ui.say("Tip: for the full-screen interface, run  pip install windows-curses  (or use WSL). "
+                   "Until then, Browse opens the interactive report in your browser.")
+        if "browse" in argv:
+            browse(ui)
+            return 0
+        if "themes" in argv:
+            return show_themes(ui)
+        if not fancy:
+            ui.say("Job Radar")
+        while True:
+            try:
+                choice = ui.choose("What now?", [("search", "Search for jobs"), ("browse", "Browse the last results"),
+                                                 ("add", "Add a company"), ("report", "Open report.html"),
+                                                 ("settings", "Settings"), ("quit", "Quit")], "search")
+            except Back:
+                break
+            try:
+                if choice == "search":
+                    search(ui)
+                elif choice == "browse":
+                    browse(ui)
+                elif choice == "add":
+                    add_company(ui)
+                elif choice == "report":
+                    open_report(ui)
+                elif choice == "settings":
+                    edit_settings(ui)
+                else:
+                    break
+            except Back:
+                continue
+    except Quit:
+        ui.say("")
+    ui.say("bye")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

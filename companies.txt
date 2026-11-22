@@ -56,3 +56,103 @@ https://jobs.lever.co/distru        | Distru
 https://jobs.lever.co/100ms         | 100ms
 https://jobs.lever.co/pigment       | Pigment
 https://jobs.ashbyhq.com/moxie      | Moxie
+
+# ---------------------------------------------------------------------------
+# Added 2026-11-22: companies that hire globally or across EMEA. Sourced from
+# github.com/wceolin/global-hiring, github.com/yanirs/established-remote and
+# web searches. Every board was checked against its public API and had remote
+# or EMEA roles open on that day.
+# ---------------------------------------------------------------------------
+
+# --- Voice, speech & AI models ---
+https://jobs.ashbyhq.com/elevenlabs         | ElevenLabs
+https://job-boards.greenhouse.io/polyai     | PolyAI
+https://job-boards.greenhouse.io/speechmatics | Speechmatics
+https://job-boards.greenhouse.io/humeai     | Hume AI
+https://jobs.ashbyhq.com/cartesia           | Cartesia
+https://jobs.ashbyhq.com/retell-ai          | Retell AI
+https://jobs.ashbyhq.com/livekit            | LiveKit
+https://jobs.ashbyhq.com/synthesia          | Synthesia
+https://jobs.ashbyhq.com/fireworks          | Fireworks AI
+https://job-boards.greenhouse.io/togetherai | Together AI
+https://jobs.ashbyhq.com/openrouter         | OpenRouter
+https://jobs.ashbyhq.com/perplexity         | Perplexity
+
+# --- LLM tooling, agents & vector search ---
+https://jobs.ashbyhq.com/langchain          | LangChain
+https://jobs.ashbyhq.com/llamaindex         | LlamaIndex
+https://jobs.ashbyhq.com/pinecone           | Pinecone
+https://jobs.ashbyhq.com/weaviate           | Weaviate
+https://jobs.ashbyhq.com/n8n                | n8n
+https://jobs.ashbyhq.com/zapier             | Zapier
+https://jobs.ashbyhq.com/triggerdev         | Trigger.dev
+https://jobs.ashbyhq.com/runpod             | Runpod
+
+# --- Talent networks & AI training work ---
+https://jobs.lever.co/toptal                | Toptal
+https://job-boards.greenhouse.io/turing     | Turing
+https://jobs.ashbyhq.com/andela             | Andela
+https://job-boards.greenhouse.io/invisible  | Invisible Technologies
+https://job-boards.greenhouse.io/upwork     | Upwork
+https://jobs.lever.co/superside             | Superside
+https://jobs.ashbyhq.com/oyster             | Oyster
+
+# --- Developer tools, databases & infra ---
+https://job-boards.greenhouse.io/canonical  | Canonical
+https://jobs.ashbyhq.com/clickhouse         | ClickHouse
+https://job-boards.greenhouse.io/elastic    | Elastic
+https://job-boards.greenhouse.io/datadog    | Datadog
+https://job-boards.greenhouse.io/gitlab     | GitLab
+https://job-boards.greenhouse.io/grafanalabs | Grafana Labs
+https://jobs.ashbyhq.com/kong               | Kong
+https://jobs.ashbyhq.com/supabase           | Supabase
+https://jobs.ashbyhq.com/temporal           | Temporal
+https://jobs.ashbyhq.com/sentry             | Sentry
+https://jobs.ashbyhq.com/linear             | Linear
+https://jobs.ashbyhq.com/coder              | Coder
+https://jobs.ashbyhq.com/docker             | Docker
+https://jobs.ashbyhq.com/sanity             | Sanity
+https://jobs.ashbyhq.com/webflow            | Webflow
+https://jobs.ashbyhq.com/workos             | WorkOS
+https://jobs.ashbyhq.com/resend             | Resend
+https://jobs.ashbyhq.com/airbyte            | Airbyte
+https://jobs.ashbyhq.com/prefect            | Prefect
+https://jobs.ashbyhq.com/percona            | Percona
+https://jobs.ashbyhq.com/stream             | Stream
+https://jobs.ashbyhq.com/incident           | incident.io
+https://job-boards.greenhouse.io/algolia    | Algolia
+https://job-boards.greenhouse.io/nearform   | NearForm
+https://job-boards.greenhouse.io/netlify    | Netlify
+https://job-boards.greenhouse.io/platformsh | Platform.sh
+https://job-boards.greenhouse.io/tailscale  | Tailscale
+https://job-boards.greenhouse.io/stackblitz | StackBlitz (Bolt)
+https://job-boards.greenhouse.io/planetscale | PlanetScale
+https://job-boards.greenhouse.io/cockroachlabs | Cockroach Labs
+https://job-boards.greenhouse.io/axiom      | Axiom
+https://job-boards.greenhouse.io/fivetran   | Fivetran
+https://jobs.lever.co/fly                   | Fly.io
+https://jobs.ashbyhq.com/searchapi          | SearchApi
+
+# --- Security & privacy ---
+https://jobs.ashbyhq.com/1password          | 1Password
+https://job-boards.greenhouse.io/bitwarden  | Bitwarden
+https://jobs.ashbyhq.com/snyk               | Snyk
+https://jobs.ashbyhq.com/semgrep            | Semgrep
+https://jobs.ashbyhq.com/socket             | Socket
+https://jobs.lever.co/sonatype              | Sonatype
+https://job-boards.greenhouse.io/proton     | Proton
+
+# --- Remote-first product companies ---
+https://job-boards.greenhouse.io/mozilla    | Mozilla
+https://job-boards.greenhouse.io/wikimedia  | Wikimedia Foundation
+https://jobs.ashbyhq.com/buffer             | Buffer
+https://jobs.ashbyhq.com/helpscout          | Help Scout
+https://job-boards.greenhouse.io/ghost      | Ghost
+https://job-boards.greenhouse.io/typeform   | Typeform
+https://job-boards.greenhouse.io/cloudbeds  | Cloudbeds
+https://job-boards.greenhouse.io/saasgroup  | saas.group
+https://job-boards.greenhouse.io/consensys  | Consensys
+
+# --- Fintech (Africa & EMEA) ---
+https://job-boards.greenhouse.io/moniepoint | Moniepoint
+https://jobs.ashbyhq.com/paddle             | Paddle
