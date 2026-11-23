@@ -126,8 +126,8 @@ class CliTests(unittest.TestCase):
 
     def test_settings_screen_changes_and_saves_each_kind_of_value(self):
         path = self.root / "settings.json"
-        # rows: 1 cv, 2 roles, 3 region, 4 sources, 5 drop senior, 6 show locked, 7 days, 8 browser, 9 theme, 10 open report, 11 reset, 12 done
-        s = Session(["5", "2", "4", "3", "2", "5", "y", "7", "14", "8", "firefox {url}", "9", "7", "12", "6"], self.root)
+        # rows: 1 cv, 2 roles, 3 region, 4 sources, 5 drop senior, 6 show locked, 7 days, 8 browser, 9 theme, 10 open report, 11 mouse, 12 reset, 13 done
+        s = Session(["5", "2", "4", "3", "2", "5", "y", "7", "14", "8", "firefox {url}", "9", "7", "13", "6"], self.root)
         s.go()
         got = settings.load(path)
         self.assertEqual((got["roles"], got["region"], got["no_senior"], got["days"], got["browser"], got["theme"]),
@@ -138,7 +138,7 @@ class CliTests(unittest.TestCase):
     def test_settings_keep_unknown_keys_and_show_current_values(self):
         path = self.root / "settings.json"
         path.write_text(json.dumps({"roles": "web", "note": "mine"}))
-        s = Session(["5", "12", "6"], self.root)
+        s = Session(["5", "13", "6"], self.root)
         s.go()
         self.assertIn("web and software", s.text)
         self.assertEqual(json.loads(path.read_text())["note"], "mine")
@@ -148,7 +148,7 @@ class CliTests(unittest.TestCase):
         cvdir.mkdir()
         (cvdir / "My_CV_General.txt").write_text("Python, Docker and PostgreSQL. React and TypeScript.")
         (cvdir / "notes.txt").write_text("not a cv")
-        s = Session(["5", "1", "1", "12", "6"], self.root)
+        s = Session(["5", "1", "1", "13", "6"], self.root)
         s.cv_dirs = [cvdir]
         s.go()
         saved = settings.load(self.root / "settings.json")["cv"]
@@ -160,7 +160,7 @@ class CliTests(unittest.TestCase):
     def test_cv_picker_typed_path_with_spaces_and_bad_files(self):
         cvfile = self.root / "my cv.txt"
         cvfile.write_text("Python and Go developer. Docker, AWS.")
-        s = Session(["5", "1", "1", str(cvfile), "1", "1", "/nope/missing.pdf", "1", "1", str(self.root / "empty.txt"), "12", "6"], self.root)
+        s = Session(["5", "1", "1", str(cvfile), "1", "1", "/nope/missing.pdf", "1", "1", str(self.root / "empty.txt"), "13", "6"], self.root)
         (self.root / "empty.txt").write_text("nothing relevant here")
         s.cv_dirs = []  # no files found: option 1 is "type a path"
         s.go()
@@ -170,13 +170,13 @@ class CliTests(unittest.TestCase):
 
     def test_cv_picker_can_clear_the_cv(self):
         settings.save(self.root / "settings.json", {"cv": "/some/cv.pdf"})
-        s = Session(["5", "1", "2", "12", "6"], self.root)  # no files found: 1 type a path, 2 don't use a CV
+        s = Session(["5", "1", "2", "13", "6"], self.root)  # no files found: 1 type a path, 2 don't use a CV
         s.cv_dirs = []
         s.go()
         self.assertEqual(settings.load(self.root / "settings.json")["cv"], "")
 
     def test_settings_subcommand_goes_straight_to_the_screen(self):
-        s = Session(["12"], self.root)
+        s = Session(["13"], self.root)
         cli.main(["settings"], inp=lambda p: s.answers.pop(0), out=s.lines.append, root=self.root, runner=s.runner, opener=s.opened.append)
         self.assertIn("Settings", s.text)
 
@@ -211,7 +211,7 @@ class CliTests(unittest.TestCase):
         self.assertNotIn("Browse the results?", s.text)
 
     def test_open_report_row_in_settings(self):
-        s = Session(["5", "10", "y", "12", "6"], self.root)
+        s = Session(["5", "10", "y", "13", "6"], self.root)
         s.go()
         self.assertTrue(settings.load(self.root / "settings.json")["open_report"])
         self.assertIn("Open report after run", s.text)

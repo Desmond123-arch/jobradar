@@ -125,6 +125,19 @@ Choose **Browse the last results** in the menu, or run `python cli.py browse`. M
 | `?` | Show every key |
 | `Esc` | Clear the filters, then quit. `q` quits straight away |
 
+**With the mouse.** Everything above also works by clicking, in the menus too:
+
+| Do this | To get this |
+|---------|-------------|
+| Click a role | Select it |
+| Double-click a role | Open the posting |
+| Click the link (or "enter open in ...") in the details panel | Open the posting |
+| Scroll the wheel | Move up and down the list. In a menu, it moves the highlight |
+| Click a hint along the bottom (`region`, `new`, `sort`, `theme`, `applied`, `exclude`, `quit` and the rest) | Do exactly what pressing that key does |
+| Click an option in any menu | Choose it |
+
+A mouse also steals the terminal's normal click-and-drag text selection. To copy text, hold **Shift** while you drag (in most terminals), or switch the mouse off: set **Mouse** to *off* in Settings, or run with `JOBRADAR_MOUSE=0`. It uses the standard xterm mouse protocol, which most modern terminals understand. In tmux, if clicks do nothing, try `tmux set -g mouse on`.
+
 ### 2. The web report
 
 Every search writes **`report.html`**: a page you open in any browser, with search, filters, sorting and a card or table view. Roles show a **CV %** badge when you have set a CV. Turn on **Open report after run** in Settings and it opens by itself when a search finishes.
@@ -159,6 +172,7 @@ Choose **Settings** in the menu, or run `python cli.py settings`. Everything is 
 | **Browser** | Which browser opens links | automatic, `chrome`, `default`, or your own command |
 | **Color theme** | The look of the terminal screens | [seven themes](#themes) |
 | **Open report after run** | Open `report.html` when a search finishes | yes / no |
+| **Mouse** | Click and scroll in the full-screen screens. Off lets you select and copy text normally | on / off |
 
 **Choosing your CV.** The picker looks for files with "cv" or "resume" in the name in this folder, your home folder, Downloads, Documents and Desktop (and the Windows side if you use WSL), newest first. Pick one, or paste a path. Windows paths such as `C:\Users\me\Downloads\cv.pdf` work. It reads the file straight away and shows the skills it found, so you know it worked.
 
@@ -346,6 +360,10 @@ Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 **"The first search is very slow."** That is the one-time scan of thousands of boards. It is saved for 30 days, and later searches are much faster.
 
 **"Pressing Enter does nothing."** Your browser setting may be wrong. Open Settings and set **Browser** to `default`.
+
+**"Clicking does nothing."** Check that **Mouse** is *on* in Settings and that `JOBRADAR_MOUSE` isn't set to `0`. Inside tmux, run `tmux set -g mouse on`. A very old terminal may not report the mouse at all. Everything still works from the keyboard.
+
+**"I can't select text to copy it."** The mouse is capturing it. Hold **Shift** while you drag, or turn **Mouse** off in Settings.
 
 **"The colors look wrong."** Try another theme, or use a terminal with 256 colors. Windows Terminal, iTerm2, GNOME Terminal and most others have them.
 

@@ -147,7 +147,7 @@ class ResetFlowTests(Folder):
 
     def test_the_settings_list_keeps_a_gap_between_every_label_and_its_value(self):
         lines = []
-        cli.main(["settings"], inp=lambda p: "12", out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
+        cli.main(["settings"], inp=lambda p: "13", out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
         for line in "\n".join(lines).splitlines():
             if "Open report after run" in line:
                 self.assertRegex(line, r"Open report after run\s{2,}\S")
@@ -158,9 +158,9 @@ class ResetFlowTests(Folder):
         self.assertEqual(cli.main(["reset", "seen", "--yes"], inp=lambda p: "", out=lines.append, root=self.root, runner=lambda a: 0, fancy=False), 0)
         self.assertFalse(seen.exists())
         applied = self.put("applied.txt", "A | B\n")
-        # settings list: row 11 is Reset, row 12 is Done. Reset menu: 1 seen 2 results 3 cache 4 settings
+        # settings list: row 12 is Reset, row 13 is Done. Reset menu: 1 seen 2 results 3 cache 4 settings
         # 5 applied 6 excluded (companies is hidden without a starter copy). So: Reset, applied, yes, Done.
-        answers = ["11", "5", "y", "12"]
+        answers = ["12", "5", "y", "13"]
         with mock.patch.object(paths, "starter_file", lambda name: None):
             cli.main(["settings"], inp=lambda p: answers.pop(0), out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
         self.assertEqual(applied.read_text(), "")

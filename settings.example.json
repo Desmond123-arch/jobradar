@@ -7,5 +7,6 @@
   "show_all": false,
   "days": 30,
   "browser": "",
-  "theme": "glow"
+  "theme": "glow",
+  "mouse": true
 }

@@ -22,12 +22,12 @@
 <text x="63 72 81 90 99 108 117 126" y="230" fill="#DDDDDD">Settings</text>
 <text x="36 45" y="250" fill="#3C3C3C">6.</text>
 <text x="63 72 81 90" y="250" fill="#DDDDDD">Quit</text>
-<text x="18 27 36" y="290" fill="#979797">↑/↓</text>
-<text x="54 63 72 81" y="290" fill="#626262">move</text>
-<text x="99" y="290" fill="#3C3C3C">•</text>
-<text x="117 126 135 144 153" y="290" fill="#979797">enter</text>
-<text x="171 180 189 198 207 216" y="290" fill="#626262">select</text>
-<text x="234" y="290" fill="#3C3C3C">•</text>
-<text x="252 261 270" y="290" fill="#979797">esc</text>
-<text x="288 297 306 315 324 333" y="290" fill="#626262">cancel</text>
+<text x="18 27 36" y="310" fill="#979797">↑/↓</text>
+<text x="54 63 72 81" y="310" fill="#626262">move</text>
+<text x="99" y="310" fill="#3C3C3C">•</text>
+<text x="117 126 135 144 153" y="310" fill="#979797">enter</text>
+<text x="171 180 189 198 207 216" y="310" fill="#626262">select</text>
+<text x="234" y="310" fill="#3C3C3C">•</text>
+<text x="252 261 270" y="310" fill="#979797">esc</text>
+<text x="288 297 306 315 324 333" y="310" fill="#626262">cancel</text>
 </g></svg>

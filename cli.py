@@ -185,10 +185,10 @@ def search(ui):
 
 # ---------------------------------------------------------------- settings
 
-FIELDS = ["cv", "roles", "region", "sources", "no_senior", "show_all", "days", "browser", "theme", "open_report"]
+FIELDS = ["cv", "roles", "region", "sources", "no_senior", "show_all", "days", "browser", "theme", "open_report", "mouse"]
 NAMES = {"cv": "CV file", "roles": "Roles", "region": "Region", "sources": "Companies", "no_senior": "Drop senior titles",
          "show_all": "Show locked roles", "days": "Look back (days)", "browser": "Browser", "theme": "Color theme",
-         "open_report": "Open report after run"}
+         "open_report": "Open report after run", "mouse": "Mouse"}
 
 
 def describe(key, value):
@@ -197,6 +197,8 @@ def describe(key, value):
         return Path(value).name if value else "not set (looks for cv.* next to jobradar.py)"
     if key in settings.OPTIONS:
         return settings.short(key, value)
+    if key == "mouse":
+        return "on" if value else "off"
     if key in ("no_senior", "show_all", "open_report"):
         return "yes" if value else "no"
     if key == "browser":
@@ -240,9 +242,10 @@ def edit_one(ui, key, path):
     elif key in settings.OPTIONS:
         opts = [(row[0], row[1]) for row in settings.OPTIONS[key]]
         settings.save(path, {key: ui.choose(NAMES[key], opts, s[key])})
-    elif key in ("no_senior", "show_all", "open_report"):
+    elif key in ("no_senior", "show_all", "open_report", "mouse"):
         question = {"no_senior": "Drop senior, staff, lead and manager titles?", "show_all": "Also show region-locked and on-site roles?",
-                    "open_report": "Open report.html in your browser when a run finishes?"}[key]
+                    "open_report": "Open report.html in your browser when a run finishes?",
+                    "mouse": "Use the mouse in the full-screen screens? (turn off to select and copy text)"}[key]
         settings.save(path, {key: ui.yes(question, s[key])})
     elif key == "days":
         settings.save(path, {"days": min(365, ui.number("Look back how many days?", s["days"]))})

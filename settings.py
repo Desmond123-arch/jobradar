@@ -10,6 +10,7 @@
   show_all   true | false              also show region-locked and on-site roles
   days       1-365                     how far back to look
   open_report true | false             open report.html in your browser when a run finishes
+  mouse      true | false             click and scroll in the full-screen screens (off lets you select text)
   browser    chrome | default | a command   see openurl.py. Empty: automatic
   theme      glow | catppuccin | tokyonight | dracula | rosepine | gruvbox | nord
 
@@ -29,7 +30,7 @@ HERE = paths.data_dir()  # your files; see paths.py
 FILE = HERE / "settings.json"
 
 DEFAULTS = {"cv": "", "roles": "ai", "region": "lagos", "sources": "list", "no_senior": False,
-            "show_all": False, "days": 30, "browser": "", "theme": "glow", "open_report": False}
+            "show_all": False, "days": 30, "browser": "", "theme": "glow", "open_report": False, "mouse": True}
 
 # value -> (menu label, short label)
 OPTIONS = {
@@ -53,7 +54,7 @@ def short(key, value):
 def _valid(key, value):
     if key in CHOICES:
         return value in CHOICES[key]
-    if key in ("no_senior", "show_all", "open_report"):
+    if key in ("no_senior", "show_all", "open_report", "mouse"):
         return isinstance(value, bool)
     if key == "days":
         return isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365
