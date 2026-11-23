@@ -1,12 +1,23 @@
 {
   "cv": "/home/you/Documents/my_cv.pdf",
   "roles": "cv",
-  "region": "emea",
+  "remote": [
+    "worldwide",
+    "africa",
+    "emea",
+    "my-timezone",
+    "unclear"
+  ],
+  "timezone": "auto",
+  "tz_range": 3,
+  "onsite": false,
+  "places": "",
   "sources": "all",
   "no_senior": false,
   "show_all": false,
   "days": 30,
   "browser": "",
   "theme": "glow",
+  "open_report": false,
   "mouse": true
 }

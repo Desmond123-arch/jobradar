@@ -1,9 +1,9 @@
-"""jobradar: check companies' own job boards for remote AI roles you can actually take.
+"""jobradar: check companies' own job boards for jobs you can actually take, remote or on-site.
 
-Reads the free public APIs behind Greenhouse, Lever and Ashby job boards (no key
-needed), keeps roles that are about AI and open to Lagos (worldwide, Africa or
-EMEA), skips companies you've excluded and roles you've applied to, and marks
-what's new since the last run.
+Reads the free public APIs behind Greenhouse, Lever and Ashby job boards, and several job
+sites (no key needed), keeps the roles you ask for (the kinds of remote role you tick, and
+on-site roles in the places you name or anywhere), skips companies you've excluded and roles
+you've applied to, and marks what's new since the last run. Run `python cli.py` for the menu.
 
   python jobradar.py                 run and write report.html
   python jobradar.py --days 60       look back 60 days instead of 30
@@ -44,7 +44,10 @@ import paths
 
 import cvmatch
 import openurl
+import scopes
 import settings
+import sources
+import timezones
 
 HERE = paths.data_dir()  # your files; see paths.py
 UA = "jobradar/1.0 (personal job search)"
@@ -236,6 +239,8 @@ class Job:
     detail_url: str = ""      # set when the description still has to be fetched
     cv_match: int = -1        # % of the skills the posting names that are on your CV; -1 = not scored
     cv_missing: list = field(default_factory=list)
+    tz_note: str = ""         # what the posting says about time zones, when it says something that fits
+    scopes: list = field(default_factory=list)  # the kinds of remote role it is (worldwide, africa, ...), see scopes.py
 
     @property
     def key(self):
@@ -421,6 +426,8 @@ def score_job(job: Job):
     if job.stretch:
         s -= 4
         why.append("senior title, stretch")
+    if job.tz_note:
+        why.append(job.tz_note)
     job.score, job.why = s, why
     return s
 
@@ -496,8 +503,66 @@ def squash(s):
 
 
 def blocked(region, show_all, emea):
-    """Regions dropped unless --all. In --emea mode a bare "Remote" is dropped too: it isn't known to be open to EMEA."""
-    return not show_all and (region in ("restricted", "onsite") or (emea and region == "unclear"))
+    """Regions dropped unless --all. In the older --emea mode a bare "Remote" is dropped too."""
+    return not show_all and (region in ("restricted", "onsite", "timezone") or (emea and region == "unclear"))
+
+
+def place_ok(location, places):
+    """Is this location one of the places you would work on-site? No places listed means anywhere."""
+    if not places:
+        return True
+    return any(re.search(r"(?<![A-Za-z])" + re.escape(p) + r"(?![A-Za-z])", location or "", re.I) for p in places)
+
+
+def assess(job, emea=False, tz=None, onsite=False, places=(), remote=None):
+    """Where can this job be done from, and does its time zone suit you? Sets job.tz_note and job.scopes and returns
+    (region, reason). An on-site role is kept (as 'nearby') when you allowed on-site roles and it is somewhere you listed.
+
+    remote is the list of kinds of remote role you ticked (see scopes.py). A role is kept if it belongs to any of them.
+    Without it, the older rules apply (classify_region and emea)."""
+    job.tz_note, job.scopes = "", []
+    if remote is None:
+        return _assess_legacy(job, emea, tz, onsite, places)
+    if not job.remote:  # on-site or hybrid: only the On-site setting can bring it in, whatever its place
+        if onsite and place_ok(job.location, places):
+            where = job.location or "no location given"
+            return "nearby", (f"on-site, in a place you listed: {where}" if places else f"on-site: {where}")
+        return "onsite", f"on-site, not remote ({job.location or 'no location given'})"
+    found, reason = scopes.of(job.location, job.description)
+    if tz:
+        verdict = tz.check(job.location, job.description)
+        if verdict.status == "mismatch":
+            job.scopes = sorted(found)
+            return "timezone", verdict.note
+        if verdict.status == "ok":
+            found.discard("unclear")  # it does say something about where: its hours
+            found.add("my-timezone")
+            job.tz_note = verdict.note
+    elif "my-timezone" in remote and timezones.mentions(job.location or ""):
+        found.discard("unclear")  # no range set, so any time zone named counts
+        found.add("my-timezone")
+    job.scopes = sorted(found)
+    chosen = scopes.label_for(found, remote)
+    if chosen:
+        return chosen, reason if chosen != "my-timezone" else (job.tz_note or reason)
+    if found:
+        names = ", ".join(scopes.LABELS[k] for k in scopes.KEYS if k in found)
+        return "restricted", f"for {names} only, which you have not ticked ({job.location})"
+    return "restricted", reason
+
+
+def _assess_legacy(job, emea, tz, onsite, places):
+    region, reason = classify_region(job, emea)
+    if region == "onsite" and onsite and place_ok(job.location, places):
+        where = job.location or "no location given"
+        return "nearby", (f"on-site, in a place you listed: {where}" if places else f"on-site: {where}")
+    if tz and region in ("africa-emea", "emea", "worldwide", "unclear"):
+        verdict = tz.check(job.location, job.description)
+        if verdict.status == "mismatch":
+            return "timezone", verdict.note
+        if verdict.status == "ok":
+            job.tz_note = verdict.note
+    return region, reason
 
 
 def hydrate(job, fetch):
@@ -509,7 +574,8 @@ def hydrate(job, fetch):
 
 
 def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, now=None,
-        any_role=False, role_rx=None, no_senior=False, emea=False, workers=1, light=False, extra_jobs=(), dead_out=None, cv=None):
+        any_role=False, role_rx=None, no_senior=False, emea=False, workers=1, light=False, extra_jobs=(), dead_out=None, cv=None,
+        tz=None, onsite=False, places=(), remote=None, listed_out=None):
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=days)
     hn_cutoff = now - timedelta(days=max(days, HN_MIN_DAYS))
@@ -559,6 +625,8 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
         board_keys.add(k)
         all_jobs.append(j)
 
+    if listed_out is not None:  # everything the boards list right now, before any filter: what "still open" means
+        listed_out.update(j.key for j in all_jobs)
     pending = []
     for job in all_jobs:
         counts["fetched"] += 1
@@ -579,7 +647,7 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
         if (norm(job.company), norm(job.title)) in applied_n:
             counts["applied"] += 1
             continue
-        job.region, job.region_reason = classify_region(job, emea)
+        job.region, job.region_reason = assess(job, emea, tz, onsite, places, remote)
         if blocked(job.region, show_all, emea):
             counts["region"] += 1
             continue
@@ -593,7 +661,7 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
         PROGRESS.finish(f"{len(to_hydrate):,} postings")
     for job in pending:
         if job.detail_url:  # the description may reveal a lock the location didn't
-            job.region, job.region_reason = classify_region(job, emea)
+            job.region, job.region_reason = assess(job, emea, tz, onsite, places, remote)
             if blocked(job.region, show_all, emea):
                 counts["region"] += 1
                 continue
@@ -602,7 +670,7 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
             cvmatch.apply(job, cv)
         job.new = job.key not in seen
         kept.append(job)
-    order = {"africa-emea": 0, "emea": 1, "worldwide": 2, "unclear": 3, "restricted": 4, "onsite": 5}
+    order = REGION_ORDER
     kept.sort(key=lambda j: (not j.new, order[j.region], -j.score))
     return kept, problems, counts
 
@@ -850,14 +918,25 @@ def discovered_companies(cache, known):
 
 # ---------------------------------------------------------------- report
 
-REGION_LABEL = {
-    "africa-emea": ("Open to Africa / EMEA", "ok"),
-    "emea": ("EMEA", "ok"),
-    "worldwide": ("Worldwide", "ok"),
-    "unclear": ("Check location", "warn"),
-    "restricted": ("Region locked", "bad"),
-    "onsite": ("On-site", "bad"),
-}
+# key, badge text, badge style, filter-button text (None: no button). Order is the order of the report's buttons.
+REGION_META = [
+    ("africa-emea", "Open to Africa / EMEA", "ok", "Africa / EMEA"),  # older results
+    ("africa", "Africa", "ok", "Africa"),
+    ("nearby", "On-site, included", "ok", "On-site"),
+    ("emea", "EMEA", "ok", "EMEA"),
+    ("my-timezone", "My time zone", "ok", "My time zone"),
+    ("worldwide", "Worldwide", "ok", "Worldwide"),
+    ("europe", "Europe", "ok", "Europe"),
+    ("middle-east", "Middle East", "ok", "Middle East"),
+    ("americas", "Americas", "ok", "Americas"),
+    ("asia-pacific", "Asia-Pacific", "ok", "Asia-Pacific"),
+    ("unclear", "Check location", "warn", "Check location"),
+    ("timezone", "Other time zone", "bad", "Other time zone"),
+    ("restricted", "Region locked", "bad", "Region locked"),
+    ("onsite", "On-site", "bad", "On-site elsewhere"),
+]
+REGION_LABEL = {key: (label, style) for key, label, style, _ in REGION_META}
+REGION_ORDER = {key: i for i, (key, *_rest) in enumerate(REGION_META)}  # how results are ranked within "new" and "seen"
 
 
 def display_company(name):
@@ -976,16 +1055,20 @@ footer ul{margin:8px 0 0;padding-left:18px;max-height:320px;overflow:auto}
 REPORT_JS = r"""
 (() => {
 const RAW = JSON.parse(document.getElementById('jobs').textContent);
-const REGIONS = [['all','All'],['africa-emea','Africa / EMEA'],['emea','EMEA'],['worldwide','Worldwide'],['unclear','Check location']];
-const LABEL = {'africa-emea':['Open to Africa / EMEA','ok'],'emea':['EMEA','ok'],'worldwide':['Worldwide','ok'],'unclear':['Check location','warn'],'restricted':['Region locked','bad'],'onsite':['On-site','bad']};
+const META = JSON.parse(document.getElementById('region-meta').textContent);
+const REGIONS = [['all','All']].concat(META.map(m => [m.key, m.button]));
+const LABEL = Object.fromEntries(META.map(m => [m.key, [m.label, m.style]]));
+const SRC_META = JSON.parse(document.getElementById('source-meta').textContent);
+const SRC = Object.fromEntries(SRC_META.map(m => [m.key, m.label]));
+const sourceName = k => SRC[k] || k || 'Unknown';
 const PAGE = 120;
-const jobs = RAW.map((j, i) => ({...j, i, hay: [j.t, j.c, j.l, j.rr, j.w, j.pay].join(' \u0001 ').toLowerCase()}));
+const jobs = RAW.map((j, i) => ({...j, i, hay: [j.t, j.c, j.l, j.rr, j.w, j.pay, sourceName(j.v)].join(' \u0001 ').toLowerCase()}));
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
 const store = {get(k){try{return localStorage.getItem('jobradar.'+k)}catch(e){return null}}, set(k,v){try{localStorage.setItem('jobradar.'+k,v)}catch(e){}}};
 
-const st = {q:'', terms:[], neg:[], region:'all', newOnly:false, sort:'best', dir:1, view: store.get('view') === 'table' ? 'table' : 'cards', shown: PAGE};
+const st = {q:'', terms:[], neg:[], region:'all', source:'all', newOnly:false, sort:'best', dir:1, view: store.get('view') === 'table' ? 'table' : 'cards', shown: PAGE};
 
 function parseQuery(q) {
   const words = q.toLowerCase().match(/"[^"]+"|\S+/g) || [];
@@ -1017,21 +1100,28 @@ const SORTS = {
   date: (a, b) => (b.p || '').localeCompare(a.p || '') || a.i - b.i,
   company: (a, b) => a.c.localeCompare(b.c, undefined, {sensitivity:'base'}) || a.i - b.i,
   title: (a, b) => a.t.localeCompare(b.t, undefined, {sensitivity:'base'}) || a.i - b.i,
+  source: (a, b) => sourceName(a.v).localeCompare(sourceName(b.v)) || a.i - b.i,
   cv: (a, b) => (b.cv ?? -1) - (a.cv ?? -1) || a.i - b.i,
 };
 
 let filtered = [];
 function compute() {
+  // Each row of buttons counts what would be left with the OTHER row's choice applied, so the numbers always add up.
   const base = jobs.filter(j => matchesText(j) && (!st.newOnly || j.n));
-  const counts = {all: base.length};
-  for (const j of base) counts[j.r] = (counts[j.r] || 0) + 1;
-  filtered = st.region === 'all' ? base : base.filter(j => j.r === st.region);
+  const inRegion = j => st.region === 'all' || j.r === st.region;
+  const inSource = j => st.source === 'all' || j.v === st.source;
+  const counts = {all: 0}, bySource = {all: 0};
+  for (const j of base) {
+    if (inSource(j)) { counts.all++; counts[j.r] = (counts[j.r] || 0) + 1; }
+    if (inRegion(j)) { bySource.all++; bySource[j.v] = (bySource[j.v] || 0) + 1; }
+  }
+  filtered = base.filter(j => inRegion(j) && inSource(j));
   const cmp = SORTS[st.sort];
   filtered.sort(st.dir === 1 ? cmp : (a, b) => cmp(b, a));
-  return counts;
+  return {regions: counts, sources: bySource};
 }
 
-const SHORT = {'africa-emea':'Africa / EMEA','unclear':'Check'};
+const SHORT = {'africa-emea':'Africa / EMEA','unclear':'Check','my-timezone':'My zone','asia-pacific':'APAC','middle-east':'Mid. East'};
 function regionBadge(j, short) {
   const [label, cls] = LABEL[j.r] || [j.r, 'warn'];
   return `<span class="b ${cls}" title="${esc(label)}">${esc(short && SHORT[j.r] || label)}</span>`;
@@ -1051,7 +1141,7 @@ function card(j) {
   return `<article class="job"><div class="h"><div><h2><a href="${esc(safeUrl(j.u))}" target="_blank" rel="noopener">${hl(j.t)}</a></h2>`
     + `<p class="co"><b>${hl(j.c)}</b> · ${hl(j.l || 'No location given')}</p></div>`
     + `<div class="fit" title="Fit score"><b>${j.s}</b><span>fit</span></div></div>`
-    + `<div class="tags">${badges(j)}${cvChip(j) ? ' ' + cvChip(j) : ''}<span class="meta">Posted ${esc(j.p || 'date unknown')}${j.pay ? ' · ' + esc(j.pay) : ''}</span></div>`
+    + `<div class="tags">${badges(j)}${cvChip(j) ? ' ' + cvChip(j) : ''}<span class="meta">Posted ${esc(j.p || 'date unknown')} · ${esc(sourceName(j.v))}${j.pay ? ' · ' + esc(j.pay) : ''}</span></div>`
     + `<p class="why">${esc(j.rr)}${j.w ? ' · ' + hl(j.w) : ''}</p></article>`;
 }
 
@@ -1059,11 +1149,12 @@ function trow(j) {
   return `<tr><td class="num">${j.s}</td>` + (HAS_CV ? `<td class="num cv">${cvChip(j) || '<span class="dim">–</span>'}</td>` : '')
     + `<td class="t"><a href="${esc(safeUrl(j.u))}" target="_blank" rel="noopener">${hl(j.t)}</a>${j.n ? '<span class="b new">NEW</span>' : ''}${j.x ? '<span class="b warn">stretch</span>' : ''}<span class="sub">${hl(j.c)}</span></td>`
     + `<td class="c">${hl(j.c)}</td>`
+    + `<td class="c">${esc(sourceName(j.v))}</td>`
     + `<td class="w">${regionBadge(j, true)}<span class="loc" title="${esc(j.l)}">${hl(j.l || 'No location given')}</span></td>`
     + `<td class="d">${esc(j.p || '?')}</td></tr>`;
 }
 
-const COLS = [['s','fit','Fit','num'], ...(HAS_CV ? [['cv','cv','CV','num cv']] : []),['t','title','Role',''],['c','company','Company','c'],['w',null,'Where',''],['d','date','Posted','d']];
+const COLS = [['s','fit','Fit','num'], ...(HAS_CV ? [['cv','cv','CV','num cv']] : []),['t','title','Role',''],['c','company','Company','c'],['v','source','Board','c'],['w',null,'Where',''],['d','date','Posted','d']];
 function thead() {
   return '<thead><tr>' + COLS.map(([k, sort, label, cls]) => {
     const active = sort && st.sort === sort;
@@ -1076,12 +1167,20 @@ function thead() {
 const out = $('#out'), more = $('#more'), count = $('#count');
 function draw(reset) {
   if (reset) { st.shown = PAGE; window.scrollTo({top: Math.min(window.scrollY, $('#bar').offsetTop)}); }
-  const counts = compute();
+  const both = compute(), counts = both.regions;
+  document.querySelectorAll('#sources button').forEach(b => {
+    const n = both.sources[b.dataset.s] || 0;
+    b.querySelector('.n').textContent = n.toLocaleString();
+    b.setAttribute('aria-pressed', String(b.dataset.s === st.source));
+    b.disabled = !n && b.dataset.s !== st.source;
+    b.hidden = b.dataset.s !== 'all' && !n && b.dataset.s !== st.source;
+  });
   document.querySelectorAll('#regions button').forEach(b => {
     const n = counts[b.dataset.r] || 0;
     b.querySelector('.n').textContent = n.toLocaleString();
     b.setAttribute('aria-pressed', String(b.dataset.r === st.region));
     b.disabled = !n && b.dataset.r !== st.region;
+    b.hidden = b.dataset.r !== 'all' && !n && b.dataset.r !== st.region;  // only the kinds of role this list has
   });
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.view)));
   $('#sort').value = st.sort;
@@ -1091,8 +1190,8 @@ function draw(reset) {
     ? `Showing <b>${Math.min(st.shown, total).toLocaleString()}</b> of <b>${total.toLocaleString()}</b> role${total === 1 ? '' : 's'}`
     : '';
   if (!total) {
-    out.innerHTML = `<div class="empty"><p>No roles match${st.q.trim() ? ` “${esc(st.q.trim())}”` : ''}${st.region !== 'all' ? ' in this location group' : ''}${st.newOnly ? ' among new roles' : ''}.</p><button type="button" id="reset">Clear search and filters</button></div>`;
-    $('#reset').onclick = () => { st.q = ''; $('#q').value = ''; parseQuery(''); st.region = 'all'; st.newOnly = false; $('#newonly').checked = false; draw(true); };
+    out.innerHTML = `<div class="empty"><p>No roles match${st.q.trim() ? ` “${esc(st.q.trim())}”` : ''}${st.region !== 'all' ? ' in this location group' : ''}${st.source !== 'all' ? ` from ${esc(sourceName(st.source))}` : ''}${st.newOnly ? ' among new roles' : ''}.</p><button type="button" id="reset">Clear search and filters</button></div>`;
+    $('#reset').onclick = () => { st.q = ''; $('#q').value = ''; parseQuery(''); st.region = 'all'; st.source = 'all'; st.newOnly = false; $('#newonly').checked = false; draw(true); };
   } else if (st.view === 'table') {
     out.innerHTML = `<table>${thead()}<tbody>${page.map(trow).join('')}</tbody></table>`;
   } else {
@@ -1116,6 +1215,8 @@ function appendMore() {
 if (!HAS_CV) $('#sort option[value=cv]')?.remove();
 $('#regions').innerHTML = REGIONS.map(([r, l]) => `<button type="button" data-r="${r}" aria-pressed="false">${l}<span class="n"></span></button>`).join('');
 $('#regions').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; st.region = b.dataset.r; draw(true); });
+$('#sources').innerHTML = [['all','All']].concat(SRC_META.map(m => [m.key, m.label])).map(([s, l]) => `<button type="button" data-s="${s}" aria-pressed="false">${esc(l)}<span class="n"></span></button>`).join('');
+$('#sources').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; st.source = b.dataset.s; draw(true); });
 $('#views').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st.view = b.dataset.v; store.set('view', st.view); draw(false); });
 $('#sort').addEventListener('change', e => { st.sort = e.target.value; st.dir = 1; draw(true); });
 $('#newonly').addEventListener('change', e => { st.newOnly = e.target.checked; draw(true); });
@@ -1154,10 +1255,14 @@ def render(jobs, problems, counts, days, now, skipped_label="not an AI or engine
         "t": j.title, "c": display_company(j.company), "u": j.url, "l": j.location, "r": j.region,
         "rr": j.region_reason, "p": (j.posted or "")[:10], "pay": j.pay, "s": j.score,
         "w": "; ".join(j.why), "n": bool(j.new), "x": bool(j.stretch),
-        "cv": j.cv_match, "cm": j.cv_missing,
+        "cv": j.cv_match, "cm": j.cv_missing, "v": j.provider,
     } for j in jobs]
     # "</" would close the <script> early; JSON allows the escaped form.
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    regions_json = json.dumps([{"key": k, "label": label, "style": style, "button": button}
+                               for k, label, style, button in REGION_META], separators=(",", ":"))
+    sources_json = json.dumps([{"key": k, "label": sources.name(k)} for k in sources.ordered(j.provider for j in jobs)],
+                              separators=(",", ":"))
     new_n = sum(j.new for j in jobs)
     skipped = [
         (counts.get("not_ai", 0), skipped_label),
@@ -1186,20 +1291,38 @@ def render(jobs, problems, counts, days, now, skipped_label="not an AI or engine
 <div class="row filters"><div class="seg" id="regions" role="group" aria-label="Location"></div><span class="spacer"></span>
 <label class="toggle"><input type="checkbox" id="newonly"> New only</label>
 <select id="sort" aria-label="Sort by"><option value="best">Best match</option><option value="fit">Fit score</option><option value="date">Newest</option><option value="company">Company A–Z</option><option value="title">Role A–Z</option><option value="cv">CV match</option></select>
-</div></div>
+</div>
+<div class="row filters"><span class="meta">Job board</span><div class="seg" id="sources" role="group" aria-label="Job board"></div></div></div>
 <p class="count" id="count" aria-live="polite"></p>
 <div id="out"><noscript><p class="empty">This report needs JavaScript to show its {len(jobs):,} roles.</p></noscript></div>
 <div class="more" id="more" hidden><button type="button">Show more</button></div>
 <footer>{failed}
 <p class="note">Location labels come from each posting's own text and can be wrong. Open the posting and check before you apply. Search tips: type several words to match all of them, put a phrase in "quotes", and start a word with - to exclude it.</p></footer>
-</main><script type="application/json" id="jobs">{payload}</script><script>{REPORT_JS}</script></body></html>"""
+</main><script type="application/json" id="region-meta">{regions_json}</script><script type="application/json" id="source-meta">{sources_json}</script><script type="application/json" id="jobs">{payload}</script><script>{REPORT_JS}</script></body></html>"""
+
+
+def _remote_arg(text):
+    try:
+        return ",".join(scopes.parse(text))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc))
+
+
+def _zone_arg(text):
+    zone = timezones.normalize(text)
+    if zone is None:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a time zone: use auto, or something like UTC+1, UTC-8 or UTC+5.5")
+    return zone
 
 
 def build_parser():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--all", action="store_true", help="include region-locked and on-site roles")
-    ap.add_argument("--emea", action="store_true", help="keep roles located anywhere in Europe, the Middle East or Africa")
+    ap.add_argument("--remote", type=_remote_arg, default=",".join(scopes.DEFAULT), metavar="KINDS",
+                    help="the kinds of remote role to keep, separated by commas: " + ", ".join(scopes.KEYS)
+                         + f" (default: {','.join(scopes.DEFAULT)})")
+    ap.add_argument("--emea", action="store_true", help="the older shortcut for --remote " + ",".join(scopes.EMEA_WIDE))
     ap.add_argument("--any-role", action="store_true", help="don't limit to AI and engineering titles")
     ap.add_argument("--roles", choices=sorted(ROLE_PRESETS), help="only these titles instead of AI/engineering (web = backend, frontend, fullstack, software engineer, web developer; cv = the stack on your CV)")
     ap.add_argument("--no-senior", action="store_true", help="drop senior, staff, principal, lead, manager and similar titles")
@@ -1213,6 +1336,12 @@ def build_parser():
     ap.add_argument("--cv", help="score jobs against your CV (.pdf/.docx/.txt/.md); cv.* next to jobradar.py is used by default")
     ap.add_argument("--no-cv", action="store_true", help="ignore any CV file")
     ap.add_argument("--open", action="store_true", help="open report.html in your browser when the run finishes")
+    ap.add_argument("--timezone", type=_zone_arg, default=timezones.AUTO, metavar="ZONE",
+                    help="your time zone: auto (this computer, the default) or something like UTC+1, UTC-8, UTC+5.5")
+    ap.add_argument("--tz-range", type=float, default=timezones.DEFAULT_RANGE, metavar="HOURS",
+                    help="hours from your time zone you are happy to work (default 3). 24 or more: don't filter by time zone")
+    ap.add_argument("--onsite", action="store_true", help="also keep on-site and hybrid roles, not only remote ones")
+    ap.add_argument("--places", default="", help='where you would work on-site, e.g. "Accra, Ghana" (blank: anywhere)')
     ap.add_argument("--no-settings", action="store_true", help="ignore settings.json (python cli.py settings edits it)")
     return ap
 
@@ -1222,22 +1351,33 @@ def parse_args(argv=None, settings_path=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     ap = build_parser()
     if "--no-settings" in argv:
-        return ap.parse_args(argv)
-    flags = settings.to_args(settings.load(settings_path))
-    return ap.parse_args(flags + argv)
+        args = ap.parse_args(argv)
+    else:
+        args = ap.parse_args(settings.to_args(settings.load(settings_path)) + argv)
+    if args.emea:  # the older shortcut for a wide set of boxes
+        args.remote = ",".join(scopes.EMEA_WIDE)
+    return args
 
 
-def load_seen(path):
-    """The role keys already shown, and a note if the file had to be set aside. A damaged file (a save that was
-    cut off) is moved to <name>.damaged so it can never stop every future run."""
+SEEN_KEEP_DAYS = 90  # forget a role this long after it was last listed on any board
+
+
+def load_seen_state(path, today=None):
+    """What has been shown, as {role key: the date it was last listed on a board}, and a note if the file had to be
+    set aside. Older files were a plain list of keys; those are read with today's date, so they get a full
+    SEEN_KEEP_DAYS from now. A damaged file (a save that was cut off) is moved to <name>.damaged so it can never
+    stop every future run."""
     path = Path(path)
+    today = today or datetime.now(timezone.utc).date().isoformat()
     if not path.exists():
-        return set(), None
+        return {}, None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, list):
-            raise ValueError("not a list")
-        return {str(x) for x in data}, None
+        if isinstance(data, list):
+            return {str(k): today for k in data}, None
+        if not isinstance(data, dict):
+            raise ValueError("not a list or a mapping")
+        return {str(k): (v if isinstance(v, str) and _is_date(v) else today) for k, v in data.items()}, None
     except (ValueError, OSError):
         aside = path.with_name(path.name + ".damaged")
         try:
@@ -1245,7 +1385,33 @@ def load_seen(path):
         except OSError:
             aside = None
         kept = f"; the old file is kept as {aside.name}" if aside else ""
-        return set(), f"{path.name} was damaged (a run was probably cut off while saving), so every role counts as new this time{kept}"
+        return {}, f"{path.name} was damaged (a run was probably cut off while saving), so every role counts as new this time{kept}"
+
+
+def load_seen(path):
+    """The role keys already shown, and a note if the file had to be set aside (see load_seen_state)."""
+    state, note = load_seen_state(path)
+    return set(state), note
+
+
+def _is_date(text):
+    try:
+        datetime.strptime(text, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def update_seen(state, listed, shown, today, keep_days=SEEN_KEEP_DAYS):
+    """The seen list after a run. Every role that is listed on a board now, or was shown, is dated today. Roles that
+    nothing has listed for keep_days are forgotten, so the file follows the boards instead of growing for ever.
+    Returns (new state, how many were forgotten)."""
+    state = dict(state)
+    for key in set(listed) | set(shown):
+        state[key] = today
+    cutoff = (datetime.strptime(today, "%Y-%m-%d") - timedelta(days=keep_days)).strftime("%Y-%m-%d")
+    kept = {k: d for k, d in state.items() if d >= cutoff}
+    return kept, len(state) - len(kept)
 
 
 def main(argv=None):
@@ -1267,9 +1433,11 @@ def _main(argv=None):
             pass
     args = parse_args(argv)
     if args.cv:
-        args.cv = settings.clean_path(args.cv)
+        args.cv = settings.locate_cv(args.cv, HERE)
     if args.everything:
         args.discover = args.aggregators = args.emea = args.any_role = True
+    if args.emea:
+        args.remote = ",".join(scopes.EMEA_WIDE)
 
     companies, bad = [], []
     for line in read_lines(HERE / "companies.txt"):
@@ -1284,7 +1452,8 @@ def _main(argv=None):
     problems = list(bad)
     cache, cache_path = None, HERE / "discovered.json"
     if args.discover:
-        print("loading discovered boards (first run scans the web archive and takes a few minutes)...")
+        scanning = args.refresh_discovery or not cache_path.exists()
+        print("loading discovered boards" + (" (this scans the web archive and takes a few minutes)" if scanning else "") + "...")
         cache, disc_problems = load_discovery(cache_path, args.refresh_discovery)
         problems += disc_problems
         companies += discovered_companies(cache, companies)
@@ -1298,10 +1467,13 @@ def _main(argv=None):
         return 1
 
     state_path = HERE / "seen.json"
-    seen, seen_note = load_seen(state_path)
+    now = datetime.now(timezone.utc)
+    today = now.date().isoformat()
+    seen_state, seen_note = load_seen_state(state_path, today)
+    seen = set(seen_state)
+    listed = set()
     if seen_note:
         problems.append(seen_note)
-    now = datetime.now(timezone.utc)
     print(f"checking {len(companies)} job boards...")
     dead = set()
     cv = None
@@ -1309,17 +1481,34 @@ def _main(argv=None):
     if cv_path:
         try:
             cv = cvmatch.load(cv_path)
-            print(f"scoring against {cv_path}: {len(cv.skills)} skills ({', '.join(sorted(cv.skills))})")
+            names = sorted(cv.skills)
+            more = f" and {len(names) - 6} more" if len(names) > 6 else ""
+            print(f"scoring against {Path(cv_path).name}: {len(cv.skills)} skills ({', '.join(names[:6])}{more})")
+        except FileNotFoundError:
+            problems.append(f"CV: no file at {cv_path}. Pick it again in Settings, or clear it to go without a CV.")
         except Exception as exc:
-            problems.append(f"CV {cv_path}: {exc}")
+            problems.append(f"CV {Path(cv_path).name}: {exc}")
     role_rx = ROLE_PRESETS.get(args.roles)
     if args.roles == "cv" and cv:
         role_rx = roles_regex_for_cv(cv.skills)
         print(f"keeping titles that fit the {len(cv.skills)} skills on your CV")
+    elif args.roles == "cv":
+        print("no CV to read, so the titles are a typical software and backend list. Set your CV in Settings to tailor them")
+    tz = timezones.make(args.timezone, args.tz_range)
+    places = tuple(p.strip() for p in re.split(r"[,;]", args.places) if p.strip())
+    remote = scopes.parse(args.remote)
+    print("remote roles: " + (", ".join(scopes.LABELS[k] for k in remote) if remote else "none ticked, so only on-site roles can show"))
+    if tz:
+        print(f"time zone: {timezones.fmt(tz.offset)}"
+              f"{' (this computer)' if args.timezone == timezones.AUTO else ''}, roles within {tz.hours:g}h of it")
+    if args.onsite:
+        print("on-site roles: " + (", ".join(places) if places else "anywhere"))
     jobs, run_problems, counts = run(
         companies, read_lines(HERE / "exclude.txt"), read_lines(HERE / "applied.txt"),
-        args.days, args.all, seen, now=now, any_role=args.any_role, role_rx=role_rx, no_senior=args.no_senior, emea=args.emea,
+        args.days, args.all, seen, now=now, any_role=args.any_role, role_rx=role_rx, no_senior=args.no_senior,
+        remote=remote, listed_out=listed,
         workers=args.workers, light=args.discover, extra_jobs=extra, dead_out=dead, cv=cv,
+        tz=tz, onsite=args.onsite, places=places,
     )
     problems += run_problems
     if cache is not None and dead:
@@ -1330,7 +1519,10 @@ def _main(argv=None):
     paths.atomic_write(args.out, render(jobs, problems, counts, args.days, now,
                                         "outside the role filter" if (args.roles or args.any_role) else "not an AI or engineering title"))
     paths.atomic_write(HERE / "jobs.json", json.dumps([asdict(j) | {"description": j.description[:400]} for j in jobs], indent=2))
-    paths.atomic_write(state_path, json.dumps(sorted(seen | {j.key for j in jobs}), indent=0))
+    seen_state, forgotten = update_seen(seen_state, listed, (j.key for j in jobs), today)
+    paths.atomic_write(state_path, json.dumps(seen_state, sort_keys=True, indent=0))
+    if forgotten:
+        print(f"forgot {forgotten:,} old roles that no board has listed for {SEEN_KEEP_DAYS} days")
 
     new = [j for j in jobs if j.new]
     print(f"\n{len(jobs)} matching roles, {len(new)} new.\n")

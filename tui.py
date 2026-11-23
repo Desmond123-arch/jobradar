@@ -12,6 +12,7 @@ import textwrap
 import time
 import unicodedata
 
+import sources
 try:
     import curses
 except ImportError:  # native Windows Python has no curses; run the CLI from WSL
@@ -20,14 +21,19 @@ except ImportError:  # native Windows Python has no curses; run the CLI from WSL
 ROUND = {"tl": "╭", "tr": "╮", "bl": "╰", "br": "╯", "h": "─", "v": "│"}
 BAR, DOT_ON, DOT_OFF, ELLIPSIS, SEP, CURSOR_BLOCK = "┃", "●", "○", "…", " • ", "█"
 
-REGION_STYLE = {"africa-emea": "ok", "emea": "ok", "worldwide": "ok", "unclear": "warn", "restricted": "bad", "onsite": "bad"}
+REGION_STYLE = {"africa-emea": "ok", "emea": "ok", "worldwide": "ok", "unclear": "warn", "restricted": "bad", "onsite": "bad",
+                "nearby": "ok", "timezone": "bad", "africa": "ok", "europe": "ok", "middle-east": "ok", "americas": "ok",
+                "asia-pacific": "ok", "my-timezone": "ok"}
 REGION_NAME = {"africa-emea": "AFRICA/EMEA", "emea": "EMEA", "worldwide": "WORLDWIDE", "unclear": "CHECK LOCATION",
-               "restricted": "LOCKED", "onsite": "ON-SITE"}
-REGION_ORDER = ["africa-emea", "emea", "worldwide", "unclear", "restricted", "onsite"]
+               "restricted": "LOCKED", "onsite": "ON-SITE", "nearby": "ON-SITE OK", "timezone": "OTHER TIME ZONE",
+               "africa": "AFRICA", "europe": "EUROPE", "middle-east": "MIDDLE EAST", "americas": "AMERICAS",
+               "asia-pacific": "ASIA-PACIFIC", "my-timezone": "MY TIME ZONE"}
+REGION_ORDER = ["africa-emea", "africa", "nearby", "emea", "my-timezone", "worldwide", "europe", "middle-east", "americas",
+                "asia-pacific", "unclear", "timezone", "restricted", "onsite"]
 SORTS = [("best", "best match"), ("fit", "fit score"), ("date", "newest"), ("company", "company A-Z")]
 ITEM_ROWS = 3  # title, meta, blank: the same rhythm Glow uses
 DOUBLE_CLICK = 0.45  # seconds between two clicks on the same role that count as a double-click
-KEY_FOR_LABEL = {"enter": 10, "esc": 27, "ctrl+u": 21, "/": "/", "r": "r", "n": "n", "s": "s", "t": "t", "a": "a",
+KEY_FOR_LABEL = {"enter": 10, "esc": 27, "ctrl+u": 21, "/": "/", "r": "r", "b": "b", "n": "n", "s": "s", "t": "t", "a": "a",
                  "x": "x", "?": "?", "q": "q"}  # the key hints along the bottom are buttons
 
 
@@ -115,7 +121,7 @@ def parse_query(query):
 
 def haystack(job):
     return " ".join([job.get("title", ""), job.get("company", ""), job.get("location", ""),
-                     " ".join(job.get("why") or []), job.get("description", "")]).lower()
+                     " ".join(job.get("why") or []), job.get("description", ""), sources.name(job.get("provider"))]).lower()
 
 
 def key_of(raw):
@@ -135,7 +141,7 @@ class State:
         self.browser_label = browser_label
         self.theme, self.theme_changed = theme, False
         self.hits, self._clicked, self._clicked_at = [], None, 0.0
-        self.query, self.region, self.new_only, self.sort = "", "", False, "best"
+        self.query, self.region, self.source, self.new_only, self.sort = "", "", "", False, "best"
         self.cursor = self.top = 0
         self.mode = "list"  # list | filter | help
         self.detail = True
@@ -149,6 +155,11 @@ class State:
         present = {j.get("region") for j in self.all}
         return [""] + [r for r in REGION_ORDER if r in present]
 
+    @property
+    def boards(self):
+        """The job boards that appear in these results, in filter order, with "" (all) first."""
+        return [""] + sources.ordered(j.get("provider") for j in self.all)
+
     def refresh(self):
         must, must_not = parse_query(self.query)
         shown = []
@@ -156,6 +167,8 @@ class State:
             if self.new_only and not j.get("new"):
                 continue
             if self.region and j.get("region") != self.region:
+                continue
+            if self.source and j.get("provider") != self.source:
                 continue
             h = haystack(j)
             if all(m in h for m in must) and not any(m in h for m in must_not):
@@ -184,7 +197,7 @@ class State:
 
     @property
     def filters_active(self):
-        return bool(self.query or self.region or self.new_only)
+        return bool(self.query or self.region or self.source or self.new_only)
 
     # -- input
     def move(self, delta):
@@ -208,7 +221,7 @@ class State:
             self.move(-1)
         elif code == keys["npage"] or ch == " ":
             self.move(self.per_page)
-        elif code == keys["ppage"] or ch == "b":
+        elif code == keys["ppage"]:
             self.move(-self.per_page)
         elif code == keys["home"] or ch == "g":
             self.cursor = 0
@@ -223,6 +236,11 @@ class State:
             self.region = r[(r.index(self.region) + 1) % len(r)] if self.region in r else ""
             self.cursor = 0
             self.refresh()
+        elif ch == "b":  # the next job board among the ones in these results
+            boards = self.boards
+            self.source = boards[(boards.index(self.source) + 1) % len(boards)] if self.source in boards else ""
+            self.cursor = 0
+            self.refresh()
         elif ch == "n":
             self.new_only = not self.new_only
             self.cursor = 0
@@ -232,7 +250,7 @@ class State:
             self.sort = names[(names.index(self.sort) + 1) % len(names)]
             self.refresh()
         elif ch == "c":
-            self.query, self.region, self.new_only = "", "", False
+            self.query, self.region, self.source, self.new_only = "", "", "", False
             self.cursor = 0
             self.refresh()
         elif ch == "d":
@@ -252,7 +270,7 @@ class State:
             return ("quit", None)
         elif code == 27:
             if self.filters_active:
-                self.query, self.region, self.new_only = "", "", False
+                self.query, self.region, self.source, self.new_only = "", "", "", False
                 self.cursor = 0
                 self.refresh()
             else:
@@ -368,7 +386,7 @@ def detail_rows(job, width, browser_label):
     rows += [chips(job)] if chips(job) else []
     if job.get("region_reason"):
         rows += wrap_rows(job["region_reason"], width, "dim")
-    facts = [f"posted {(job.get('posted') or '?')[:10]}", f"fit {job.get('score', 0)}"]
+    facts = [f"posted {(job.get('posted') or '?')[:10]}", f"fit {job.get('score', 0)}", f"via {sources.name(job.get('provider'))}"]
     if job.get("pay"):
         facts.insert(1, job["pay"])
     rows += [[(SEP.join(facts), "dim")], []]
@@ -383,7 +401,7 @@ def detail_rows(job, width, browser_label):
 
 def help_pairs():
     return [("↑/↓  j/k", "move"), ("pgup/pgdn", "page"), ("g / G", "top / bottom"), ("enter / o", "open the posting in your browser"),
-            ("/", "filter: words are ANDed, \"quotes\" keep phrases, -word excludes"), ("r", "cycle region"),
+            ("/", "filter: words are ANDed, \"quotes\" keep phrases, -word excludes"), ("r", "cycle region"), ("b", "cycle job board (Greenhouse, Lever, ...)"),
             ("n", "new roles only"), ("s", "cycle sort"), ("c", "clear all filters"), ("d", "show or hide the details pane"), ("t", "cycle the color theme (remembered)"),
             ("a", "mark applied (saved to applied.txt)"), ("x", "exclude this company (saved to exclude.txt)"),
             ("esc", "clear filters, then quit"), ("q", "quit"),
@@ -395,6 +413,19 @@ def help_line(pairs):
     for i, (k, d) in enumerate(pairs):
         out += ([(SEP, "sep")] if i else []) + [(k, "key"), (" " + d, "dim")]
     return out
+
+
+HINT_DROP_ORDER = ["↑/↓", "t", "s", "x", "a", "n", "b", "r"]  # least important first; "? more" and "q quit" always stay
+
+
+def fit_hints(pairs, width):
+    """The key hints that fit in width cells: if they all do, all of them; if not, the least important go first."""
+    pairs = list(pairs)
+    for key in HINT_DROP_ORDER:
+        if spans_width(help_line(pairs)) <= width:
+            break
+        pairs = [p for p in pairs if p[0] != key]
+    return pairs
 
 
 def help_hits(pairs, y):
@@ -429,6 +460,8 @@ def frame(state, h, w):
             parts.append((f'filter: "{state.query}"', "accent"))
         if state.region:
             parts.append((f"region: {REGION_NAME[state.region].title()}", "accent"))
+        if state.source:
+            parts.append((f"board: {sources.name(state.source)}", "accent"))
         if state.new_only:
             parts.append(("new only", "accent"))
         row = []
@@ -492,8 +525,9 @@ def frame(state, h, w):
     if state.mode == "filter":
         footer = [("enter", "apply"), ("esc", "cancel"), ("ctrl+u", "clear")]
     else:
-        footer = [("↑/↓", "move"), ("enter", "open"), ("/", "filter"), ("r", "region"), ("n", "new"),
+        footer = [("↑/↓", "move"), ("enter", "open"), ("/", "filter"), ("r", "region"), ("b", "board"), ("n", "new"),
                   ("s", "sort"), ("t", "theme"), ("a", "applied"), ("x", "exclude"), ("?", "more"), ("q", "quit")]
+    footer = fit_hints(footer, w)
     state.hits += help_hits(footer, len(rows))
     rows.append(help_line(footer))
     rows = [fit_spans(r, w) for r in rows[:h]]
@@ -515,7 +549,15 @@ def theme_sample(width):
     return rows
 
 
-def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • enter select • esc cancel", notes=(), extra=(), hits=None):
+def option_window(h, notes, extra, n):
+    """How many option rows fit on screen. When they don't all fit, two more rows are spent on "more" markers."""
+    lines = len([ln for note in notes for ln in str(note).splitlines() if ln.strip()][-10:])
+    room = max(3, h - (3 + lines + 1) - (len(extra) + 1 if extra else 0) - 2)
+    return room if n <= room else max(1, room - 2)
+
+
+def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • enter select • esc cancel", notes=(), extra=(), hits=None, top=0,
+                 checks=None):
     """gum-style single choice list: a pink > marks the current line. notes are short messages shown under the
     prompt; extra rows go below the options. The key hints are always the final row returned, even when the
     content has to be cut to fit a short window."""
@@ -523,12 +565,23 @@ def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • en
     lines = [ln for n in notes for ln in str(n).splitlines() if ln.strip()][-10:]
     rows += [[(clip(ln.strip(), w - 2), "dim")] for ln in lines]
     rows.append([])
-    for i, (_, label) in enumerate(options):
-        on = i == cursor
+    window = option_window(h, notes, extra, len(options))
+    scrolls = len(options) > window
+    top = max(0, min(top, len(options) - window)) if scrolls else 0
+    if scrolls:
+        rows.append([(f"  ↑ {top} more", "faint")] if top else [])
+    for i in range(top, min(len(options), top + window)):
+        label, on = options[i][1], i == cursor
         if hits is not None:
             hits.append((len(rows), len(rows), 0, w, "opt", i))
-        rows.append([("> " if on else "  ", "bar" if on else "normal"), (f"{i + 1}. " if i < 9 else "   ", "faint"),
-                     (clip(label, w - 8), "sel_title" if on else "normal")])
+        box = []
+        if checks is not None and options[i][0] != "__done":  # a tick box: [x] ticked, [ ] not
+            box = [("[x] ", "ok")] if options[i][0] in checks else [("[ ] ", "faint")]
+        rows.append([("> " if on else "  ", "bar" if on else "normal"), (f"{i + 1}. " if i < 9 else "   ", "faint")] + box
+                    + [(clip(label, w - 8 - (4 if box else 0)), "sel_title" if on else "normal")])
+    if scrolls:
+        below = len(options) - top - window
+        rows.append([(f"  ↓ {below} more", "faint")] if below else [])
     if extra:
         rows += [[]] + list(extra)
     help_row = help_line([(k, d) for k, d in (p.split(" ", 1) for p in hint.split(" • "))])
@@ -825,6 +878,111 @@ def run_browser(jobs, handlers, browser_label="your browser", screen=None):
             screen.close()
 
 
+def input_frame(title, prompt, text, placeholder, h, w, notes=()):
+    """A one-line text question: the prompt, then a field with a block cursor. A long entry scrolls to show its end."""
+    rows = [[(f" {title} ", "badge")], [], [(prompt, "accent")]]
+    lines = [ln for n in notes for ln in str(n).splitlines() if ln.strip()][-6:]
+    rows += [[(clip(ln.strip(), w - 2), "dim")] for ln in lines]
+    rows.append([])
+    room = max(4, w - 6)
+    if text:
+        shown = text
+        while cells(shown) > room:
+            shown = shown[1:]
+        field = [("> ", "bar"), (shown, "query"), (CURSOR_BLOCK, "accent")]
+    else:
+        field = [("> ", "bar"), (CURSOR_BLOCK, "accent"), (clip(placeholder, room), "faint")]
+    rows += [field, [], help_line([("enter", "confirm"), ("esc", "cancel"), ("ctrl+u", "clear")])]
+    return [fit_spans(r, w) for r in rows[:h]]
+
+
+def run_input(title, prompt, screen=None, text="", placeholder="", notes=()):
+    """Ask for a line of text inside the full-screen session. Returns the text, or None when cancelled with Esc."""
+    own = screen is None
+    screen = screen or Screen()
+    try:
+        stdscr = screen.open()
+        while True:
+            h, w = stdscr.getmaxyx()
+            paint(stdscr, input_frame(title, prompt, text, placeholder, h, w, notes), screen.attrs)
+            try:
+                raw = stdscr.get_wch()
+            except curses.error:
+                continue
+            code, ch = key_of(raw)
+            if code == curses.KEY_MOUSE:
+                read_mouse()  # clicks mean nothing here, but the event has to be taken off the queue
+            elif code in (10, 13, curses.KEY_ENTER):
+                return text
+            elif code == 27:
+                return None
+            elif code in (127, 8, curses.KEY_BACKSPACE):
+                text = text[:-1]
+            elif code == 21:  # ctrl-u
+                text = ""
+            elif ch and ch.isprintable():
+                text += ch
+    finally:
+        if own:
+            screen.close()
+
+
+def run_checklist(title, prompt, options, selected, screen=None, notes=()):
+    """Tick any number of boxes. Space (or Enter) ticks the highlighted one; choose Done, or press d, to finish.
+    Returns the ticked keys in the order of options, or None when cancelled with Esc."""
+    own = screen is None
+    screen = screen or Screen()
+    rows = list(options) + [("__done", "Done")]
+    keys = [k for k, _ in rows]
+    ticked = set(selected)
+    hint = "↑/↓ move • space tick • d done • esc cancel"
+    try:
+        stdscr = screen.open()
+        cur, top = 0, 0
+        while True:
+            h, w = stdscr.getmaxyx()
+            window = option_window(h, notes, (), len(rows))
+            top = cur if cur < top else cur - window + 1 if cur >= top + window else top
+            hits = []
+            paint(stdscr, select_frame(title, prompt, rows, cur, h, w, hint=hint, notes=notes, hits=hits, top=top, checks=ticked),
+                  screen.attrs)
+            try:
+                raw = stdscr.get_wch()
+            except curses.error:
+                continue
+            code, ch = key_of(raw)
+            act = None  # "toggle" the highlighted row, or finish
+            if code == curses.KEY_MOUSE:
+                m = read_mouse()
+                if m and m[0] in ("up", "down"):
+                    cur = max(0, min(len(rows) - 1, cur + (-1 if m[0] == "up" else 1)))
+                elif m and m[0] == "click":
+                    for y0, y1, x0, x1, action, arg in hits:
+                        if action == "opt" and y0 <= m[2] <= y1 and x0 <= m[1] < x1:
+                            cur, act = arg, "toggle"
+            elif code == curses.KEY_DOWN or ch == "j":
+                cur = min(len(rows) - 1, cur + 1)
+            elif code == curses.KEY_UP or ch == "k":
+                cur = max(0, cur - 1)
+            elif ch == " " or code in (10, 13, curses.KEY_ENTER):
+                act = "toggle"
+            elif ch.isdigit() and 1 <= int(ch) <= len(options):
+                cur, act = int(ch) - 1, "toggle"
+            elif ch == "d":
+                return [k for k, _ in options if k in ticked]
+            elif ch == "a":  # all on, or all off when everything already is
+                ticked = set() if ticked >= {k for k, _ in options} else {k for k, _ in options}
+            elif code == 27 or ch == "q":
+                return None
+            if act == "toggle":
+                if keys[cur] == "__done":
+                    return [k for k, _ in options if k in ticked]
+                ticked ^= {keys[cur]}
+    finally:
+        if own:
+            screen.close()
+
+
 def run_select(title, prompt, options, default, screen=None, notes=(), preview=False):
     """Arrow-key chooser. Returns the chosen key, or None when cancelled.
     preview=True is for choosing a color theme: the keys are theme names, the screen switches to each one as you
@@ -836,13 +994,16 @@ def run_select(title, prompt, options, default, screen=None, notes=(), preview=F
         stdscr = screen.open()
         original = screen.theme
         cur = keys.index(default) if default in keys else 0
+        top = 0
         if preview and keys[cur] in THEMES and screen.theme != keys[cur]:
             screen.set_theme(keys[cur])
         while True:
             h, w = stdscr.getmaxyx()
             extra = theme_sample(w) if preview else ()
             hits = []
-            paint(stdscr, select_frame(title, prompt, options, cur, h, w, notes=notes, extra=extra, hits=hits), screen.attrs)
+            window = option_window(h, notes, extra, len(options))
+            top = cur if cur < top else cur - window + 1 if cur >= top + window else top  # keep the cursor in view
+            paint(stdscr, select_frame(title, prompt, options, cur, h, w, notes=notes, extra=extra, hits=hits, top=top), screen.attrs)
             try:
                 raw = stdscr.get_wch()
             except curses.error:

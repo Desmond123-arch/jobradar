@@ -4,7 +4,7 @@
   2  Browse        full-screen list of the last results: filter, sort, press Enter to open a posting
   3  Add company   paste a careers URL into companies.txt
   4  Open report   open report.html in your browser
-  5  Settings      your CV, roles, region, companies, days, browser, theme and auto-open
+  5  Settings      your CV, roles, which remote roles, time zone, on-site, companies, days, browser, theme
 
   python cli.py browse    go straight to the full-screen browser
   python cli.py settings  go straight to settings
@@ -18,6 +18,7 @@ back to numbered prompts. Links open in Windows Chrome from WSL (see openurl.py)
 
 import json
 import math
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -27,11 +28,16 @@ import jobradar as jr
 import openurl
 import paths
 import reset
+import scopes
 import settings
+import sources
+import timezones
 
 PAGE = 10
-REGION_TAG = {"africa-emea": "AFRICA/EMEA", "emea": "EMEA", "worldwide": "WORLDWIDE",
-              "unclear": "CHECK LOC", "restricted": "LOCKED", "onsite": "ON-SITE"}
+REGION_TAG = {"africa-emea": "AFRICA/EMEA", "emea": "EMEA", "worldwide": "WORLDWIDE", "unclear": "CHECK LOC",
+              "restricted": "LOCKED", "onsite": "ON-SITE", "africa": "AFRICA", "europe": "EUROPE", "middle-east": "MIDDLE EAST",
+              "americas": "AMERICAS", "asia-pacific": "ASIA-PACIFIC", "my-timezone": "MY TIME ZONE", "nearby": "ON-SITE OK",
+              "timezone": "OTHER TIME ZONE"}
 
 
 class Quit(Exception):
@@ -88,6 +94,20 @@ class UI:
                 return raw
             self.say(f"  pick 1-{len(keys)}")
 
+    def checklist(self, prompt, options, selected):
+        """Tick any number of options. Plain version: type the numbers to switch on or off, blank when done."""
+        ticked = set(selected)
+        while True:
+            self.say(f"\n{prompt}")
+            for i, (key, label) in enumerate(options, 1):
+                self.say(f"  {i}. [{'x' if key in ticked else ' '}] {label}")
+            raw = self.ask("Numbers to tick or untick (blank when done):")
+            if not raw:
+                return [k for k, _ in options if k in ticked]
+            for token in re.split(r"[,\s]+", raw):
+                if token.isdigit() and 1 <= int(token) <= len(options):
+                    ticked ^= {options[int(token) - 1][0]}
+
     def yes(self, prompt, default=False):
         raw = self.ask(f"{prompt} [{'Y/n' if default else 'y/N'}]").lower()
         return default if not raw else raw.startswith("y")
@@ -130,17 +150,50 @@ class FancyUI(UI):
             self.out(note)
 
     def _run(self, argv):
-        self.close()
-        return self._real_runner(argv)
+        """A search prints as it goes, so it gets the normal terminal, cleared and headed, and the screen waits for
+        Enter afterwards: otherwise the next full-screen menu would cover the result before it could be read."""
+        self.screen.close()
+        held, self.notes = self.notes, []
+        self.out("\x1b[2J\x1b[HJob Radar \u00b7 searching\n")
+        for note in held:
+            self.out(note)
+        code = self._real_runner(argv)
+        try:
+            self.inp("\nPress Enter to go back to the menu ")
+        except (EOFError, KeyboardInterrupt):
+            pass
+        return code
 
-    def ask(self, prompt):
-        self.close()  # typing a line needs the normal terminal
-        return super().ask(prompt)
+    def ask(self, prompt, placeholder=""):
+        """A line of text, typed inside the full-screen session (no dropping out to the plain terminal)."""
+        import tui
+        notes, self.notes = self.notes, []
+        text = tui.run_input("Job Radar", prompt.strip().rstrip(":").strip(), screen=self.screen, placeholder=placeholder, notes=notes)
+        if text is None:
+            raise Back
+        return text.strip()
+
+    def number(self, prompt, default):
+        while True:
+            text = self.ask(prompt, placeholder=f"{default}  (press Enter to keep it)")
+            if not text:
+                return default
+            if text.isdigit() and int(text) > 0:
+                return int(text)
+            self.say("  Enter a whole number, like 14.")
 
     def choose(self, prompt, options, default, preview=False):
         import tui
         notes, self.notes = self.notes, []
         picked = tui.run_select("Job Radar", prompt, options, default, screen=self.screen, notes=notes, preview=preview)
+        if picked is None:
+            raise Back
+        return picked
+
+    def checklist(self, prompt, options, selected):
+        import tui
+        notes, self.notes = self.notes, []
+        picked = tui.run_checklist("Job Radar", prompt, options, selected, screen=self.screen, notes=notes)
         if picked is None:
             raise Back
         return picked
@@ -151,29 +204,64 @@ class FancyUI(UI):
 
 # ---------------------------------------------------------------- search
 
+REMOTE_PROMPT = "Which remote roles do you want?"
+REMOTE_HINT = "Tick every kind you want. A role shows if it matches any of them."
+
+
+def remote_options():
+    return [(key, f"{label}: {meaning}") for key, label, meaning, _ in scopes.CATEGORIES]
+
+
+def pick_remote(ui, current):
+    ui.say("  " + REMOTE_HINT)
+    return ui.checklist(REMOTE_PROMPT, remote_options(), current)
+
+
 def build_args(ui, s):
     """Ask the search questions, starting from the saved settings. Returns (jobradar flags, the chosen values)."""
     def opts(key, which=1):
         return [(v, row[which]) for row in settings.OPTIONS[key] for v in [row[0]]]
     role = ui.choose("Which roles?", opts("roles"), s["roles"])
-    region = ui.choose("Which regions?", opts("region"), s["region"])
+    remote = pick_remote(ui, s["remote"])
     sources = ui.choose("Which companies?", opts("sources"), s["sources"])
     no_senior = ui.yes("Drop senior, staff, lead and manager titles?", s["no_senior"])
     show_all = ui.yes("Also show region-locked and on-site roles?", s["show_all"])
     days = ui.number("Posted within how many days?", s["days"])
-    chosen = dict(s, roles=role, region=region, sources=sources, no_senior=no_senior, show_all=show_all, days=days)
+    chosen = dict(s, roles=role, remote=remote, sources=sources, no_senior=no_senior, show_all=show_all, days=days)
     return settings.to_args(chosen), chosen
 
 
+SEARCH_SUMMARY = ["roles", "remote", "timezone", "tz_range", "onsite", "sources", "no_senior", "days"]
+
+
 def search(ui):
+    """Search with the saved settings, by default straight away. Changing things for one search, or editing the
+    saved settings first, are choices, not a questionnaire you have to answer every time."""
     path = ui.path("settings.json")
-    saved = settings.load(path)
-    argv, chosen = build_args(ui, saved)
-    ui.say("\nThis is the same as:  python jobradar.py " + shlex.join(argv))
-    if not ui.yes("Run it now?", True):
-        return
-    if chosen != saved and ui.yes("Save these answers as your defaults?", False):
-        settings.save(path, chosen)
+    while True:
+        saved = settings.load(path)
+        for key in SEARCH_SUMMARY:
+            ui.say(f"  {NAMES[key]:<22}{describe(key, saved[key])}")
+        choice = ui.choose("Search with your saved settings?", [
+            ("run", "Search now"),
+            ("change", "Change a few answers for this search only"),
+            ("settings", "Edit my saved settings first")], "run")
+        if choice == "settings":
+            try:
+                edit_settings(ui)
+            except Back:
+                pass
+            continue  # and back to this question, now with the new settings
+        break
+    if choice == "run":
+        argv = settings.to_args(saved)
+    else:
+        argv, chosen = build_args(ui, saved)
+        ui.say("\nThis is the same as:  python jobradar.py " + shlex.join(argv))
+        if not ui.yes("Run it now?", True):
+            return
+        if chosen != saved and ui.yes("Save these answers as your saved settings?", False):
+            settings.save(path, chosen)
     if "--discover" in argv and not ui.path("discovered.json").exists():
         ui.say("First discovery scan: expect a few extra minutes while it collects company boards.")
     ui.runner(["--no-settings"] + argv)  # the answers above are the whole story, not settings.json on top
@@ -185,10 +273,12 @@ def search(ui):
 
 # ---------------------------------------------------------------- settings
 
-FIELDS = ["cv", "roles", "region", "sources", "no_senior", "show_all", "days", "browser", "theme", "open_report", "mouse"]
-NAMES = {"cv": "CV file", "roles": "Roles", "region": "Region", "sources": "Companies", "no_senior": "Drop senior titles",
+FIELDS = ["cv", "roles", "remote", "timezone", "tz_range", "onsite", "places", "sources", "no_senior", "show_all", "days",
+          "browser", "theme", "open_report", "mouse"]
+NAMES = {"cv": "CV file", "roles": "Roles", "remote": "Remote roles", "sources": "Companies", "no_senior": "Drop senior titles",
          "show_all": "Show locked roles", "days": "Look back (days)", "browser": "Browser", "theme": "Color theme",
-         "open_report": "Open report after run", "mouse": "Mouse"}
+         "open_report": "Open report after run", "mouse": "Mouse", "timezone": "Time zone", "tz_range": "Time zone range",
+         "onsite": "On-site roles", "places": "On-site places"}
 
 
 def describe(key, value):
@@ -199,7 +289,15 @@ def describe(key, value):
         return settings.short(key, value)
     if key == "mouse":
         return "on" if value else "off"
-    if key in ("no_senior", "show_all", "open_report"):
+    if key == "remote":
+        return scopes.short(value)
+    if key == "timezone":
+        return timezones.describe(value)
+    if key == "tz_range":
+        return timezones.range_label(value)
+    if key == "places":
+        return value or "anywhere"
+    if key in ("no_senior", "show_all", "open_report", "onsite"):
         return "yes" if value else "no"
     if key == "browser":
         return value or "automatic"
@@ -242,8 +340,24 @@ def edit_one(ui, key, path):
     elif key in settings.OPTIONS:
         opts = [(row[0], row[1]) for row in settings.OPTIONS[key]]
         settings.save(path, {key: ui.choose(NAMES[key], opts, s[key])})
-    elif key in ("no_senior", "show_all", "open_report", "mouse"):
+    elif key == "remote":
+        picked = pick_remote(ui, s["remote"])
+        settings.save(path, {"remote": picked})
+    elif key == "timezone":
+        options = [(timezones.AUTO, f"Detect from this computer (now {timezones.fmt(timezones.system_offset())})")]
+        options += [(timezones.key_for(o), f"{timezones.fmt(o):<9}{places}") for o, places in timezones.ZONES]
+        current = s["timezone"] if s["timezone"] in dict(options) else timezones.AUTO
+        settings.save(path, {"timezone": ui.choose("Your time zone", options, current)})
+    elif key == "tz_range":
+        options = [(str(h), label) for h, label in timezones.RANGES]
+        picked = ui.choose("How far from your time zone are you happy to work?", options, str(s["tz_range"]) if str(s["tz_range"]) in dict(options) else "3")
+        settings.save(path, {"tz_range": int(picked)})
+    elif key == "places":
+        text = ui.ask("\nWhere would you work on-site? For example: Accra, Ghana (blank = anywhere):")
+        settings.save(path, {"places": text})
+    elif key in ("no_senior", "show_all", "open_report", "mouse", "onsite"):
         question = {"no_senior": "Drop senior, staff, lead and manager titles?", "show_all": "Also show region-locked and on-site roles?",
+                    "onsite": "Also keep on-site and hybrid roles, not only remote ones?",
                     "open_report": "Open report.html in your browser when a run finishes?",
                     "mouse": "Use the mouse in the full-screen screens? (turn off to select and copy text)"}[key]
         settings.save(path, {key: ui.yes(question, s[key])})
@@ -308,7 +422,7 @@ def first_run(ui):
     """Once, the first time in a real terminal: the questions that matter, then write every setting out."""
     path = ui.path("settings.json")
     ui.say("Welcome to Job Radar. A few questions to set it up. Esc skips one, and Settings changes them any time.")
-    for key in ("cv", "roles", "region", "sources", "theme", "open_report"):
+    for key in ("cv", "roles", "remote", "timezone", "tz_range", "sources", "theme", "open_report"):
         try:
             edit_one(ui, key, path)
         except Back:
@@ -333,8 +447,11 @@ def matches(job, f):
         return False
     if f["region"] and job.get("region") != f["region"]:
         return False
+    if f.get("board") and job.get("provider") != f["board"]:
+        return False
     text = f["text"].lower()
-    if text and text not in " ".join([job.get("title", ""), job.get("company", ""), job.get("location", "")]).lower():
+    if text and text not in " ".join([job.get("title", ""), job.get("company", ""), job.get("location", ""),
+                                      sources.name(job.get("provider"))]).lower():
         return False
     return True
 
@@ -345,6 +462,8 @@ def describe_filters(f):
         parts.append(f'text "{f["text"]}"')
     if f["region"]:
         parts.append(REGION_TAG.get(f["region"], f["region"]))
+    if f.get("board"):
+        parts.append(sources.name(f["board"]))
     if f["new"]:
         parts.append("new only")
     return ", ".join(parts) or "none"
@@ -432,7 +551,7 @@ def browse_plain(ui):
     if not jobs:
         ui.say("\nNo results yet. Run a search first.")
         return
-    f = {"text": "", "region": "", "new": False}
+    f = {"text": "", "region": "", "board": "", "new": False}
     page = 0
     while True:
         shown = [j for j in jobs if matches(j, f)]
@@ -452,15 +571,18 @@ def browse_plain(ui):
             page = max(page - 1, 0)
         elif cmd == "f":
             sub = ui.choose("Filter by", [("text", "Text in title, company or location"), ("region", "Region"),
-                                          ("new", "New only (toggle)"), ("clear", "Clear all filters")], "text")
+                                          ("board", "Job board"), ("new", "New only (toggle)"), ("clear", "Clear all filters")], "text")
             if sub == "text":
                 f["text"] = ui.ask("Text (blank to clear):")
             elif sub == "region":
                 f["region"] = ui.choose("Region", [("", "Any")] + [(k, v.title()) for k, v in REGION_TAG.items()], "")
+            elif sub == "board":
+                present = sources.ordered(j.get("provider") for j in jobs)
+                f["board"] = ui.choose("Job board", [("", "Any")] + [(k, sources.name(k)) for k in present], "")
             elif sub == "new":
                 f["new"] = not f["new"]
             else:
-                f.update(text="", region="", new=False)
+                f.update(text="", region="", board="", new=False)
             page = 0
         elif cmd.isdigit() and 1 <= int(cmd) <= len(shown):
             job = shown[int(cmd) - 1]
@@ -514,7 +636,8 @@ def open_report(ui):
         return
     ui.say(f"\n{report}")
     try:
-        ui.opener(openurl.file_target(report))
+        if ui.opener(openurl.file_target(report)) is False:
+            ui.say("  Couldn't start a browser. Open that file yourself, or set one in Settings.")
     except Exception:
         pass
 

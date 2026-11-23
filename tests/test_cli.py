@@ -11,13 +11,18 @@ import cli  # noqa: E402
 import settings  # noqa: E402
 
 JOBS = [
-    {"company": "Acme", "title": "Backend Engineer", "url": "https://a/1", "location": "Berlin", "region": "emea",
+    {"company": "Acme", "title": "Backend Engineer", "url": "https://a/1", "location": "Berlin", "region": "emea", "provider": "greenhouse",
      "region_reason": "location in EMEA: Berlin", "posted": "2026-11-05T10:00:00Z", "pay": "", "score": 5,
      "why": ["engineering role"], "new": True, "description": "Python and Go."},
     {"company": "Beta Co", "title": "Frontend Engineer", "url": "https://b/2", "location": "Remote - Worldwide",
      "region": "worldwide", "region_reason": "location: Remote - Worldwide", "posted": "2026-11-06", "pay": "",
-     "score": 3, "why": [], "new": False, "description": ""},
+     "score": 3, "why": [], "new": False, "description": "", "provider": "lever"},
 ]
+
+
+def row(name):
+    """The number to type for a row on the settings screen, found by name so adding a setting never breaks a test."""
+    return str((list(cli.FIELDS) + ["reset", "done"]).index(name) + 1)
 
 
 class Session:
@@ -49,27 +54,72 @@ class CliTests(unittest.TestCase):
         (self.root / "jobs.json").write_text(json.dumps(JOBS))
 
     def test_search_wizard_builds_flags(self):
-        s = Session(["1", "2", "2", "3", "y", "n", "14", "y", "n", "n", "6"], self.root)
-        # search, cv roles, emea, all sources, drop senior, hide locked, 14 days, run, don't save, no browse, quit
+        s = Session(["1", "2", "2", "4 5", "", "3", "y", "n", "14", "y", "n", "n", "6"], self.root)
+        # search, change a few answers, cv roles, tick Europe and Middle East then done, all sources, drop senior,
+        # hide locked, 14 days, run, don't save, no browse, quit
         s.go()
-        self.assertEqual(s.runs, [["--no-settings", "--roles", "cv", "--emea", "--aggregators", "--discover", "--no-senior", "--days", "14"]])
+        self.assertEqual(s.runs, [["--no-settings", "--roles", "cv", "--remote", "worldwide,africa,emea,europe,middle-east,my-timezone,unclear", "--aggregators", "--discover", "--no-senior", "--days", "14"]])
         self.assertFalse((self.root / "settings.json").exists())
-        self.assertIn("python jobradar.py --roles cv --emea --aggregators --discover --no-senior --days 14", s.text)
+        self.assertIn("python jobradar.py --roles cv --remote worldwide,africa,emea,europe,middle-east,my-timezone,unclear --aggregators --discover --no-senior --days 14", s.text)
 
-    def test_wizard_starts_from_saved_settings(self):
-        settings.save(self.root / "settings.json", {"roles": "cv", "region": "emea", "sources": "all"})
-        s = Session(["", "", "", "", "", "", "", "", "n", "6"], self.root)
+    def test_search_runs_with_the_saved_settings_and_asks_nothing_else(self):
+        settings.save(self.root / "settings.json", {"roles": "cv", "remote": ["worldwide", "africa", "emea", "europe", "middle-east", "my-timezone", "unclear"], "sources": "all"})
+        s = Session(["", "", "n", "6"], self.root)  # Search, Search now (the default), no browse, quit
         s.go()
-        self.assertEqual(s.runs, [["--no-settings", "--roles", "cv", "--emea", "--aggregators", "--discover"]])
+        self.assertEqual(s.runs, [["--no-settings", "--roles", "cv", "--remote", "worldwide,africa,emea,europe,middle-east,my-timezone,unclear", "--aggregators", "--discover"]])
+        for question in ("Which roles?", "Which remote roles do you want?", "Which companies?", "Posted within how many days?", "Run it now?"):
+            self.assertNotIn(question, s.text)  # none of the questionnaire
+        self.assertIn("Search with your saved settings?", s.text)
+
+    def test_the_summary_shows_what_will_be_searched(self):
+        settings.save(self.root / "settings.json", {"roles": "web", "days": 15, "timezone": "UTC+0", "tz_range": 8, "sources": "agg",
+                                                    "remote": ["worldwide", "africa"], "no_senior": True})
+        s = Session(["", "", "n", "6"], self.root)
+        s.go()
+        for expected in ("Roles", "web and software", "Remote roles", "Worldwide, Africa", "Time zone", "UTC+0",
+                         "within 8h", "Companies", "plus job sites", "Drop senior titles", "yes", "Look back", "15"):
+            self.assertIn(expected, s.text)
+
+    def test_every_search_after_the_first_asks_nothing_new(self):
+        settings.save(self.root / "settings.json", {"roles": "web", "days": 15})
+        s = Session(["", "", "n", "", "", "n", "6"], self.root)  # two searches in a row, each: Search, Search now, no browse
+        s.go()
+        self.assertEqual(len(s.runs), 2)
+        self.assertEqual(s.runs[0], s.runs[1])
+        self.assertEqual(s.runs[0], ["--no-settings", "--roles", "web", "--days", "15"])
+
+    def test_changing_things_for_one_search_still_works_and_is_the_old_questionnaire(self):
+        settings.save(self.root / "settings.json", {"roles": "cv", "remote": ["worldwide", "africa", "emea", "europe", "middle-east", "my-timezone", "unclear"], "sources": "all"})
+        s = Session(["", "2"] + [""] * 7 + ["n", "6"], self.root)  # Search, change, accept every default, run, no browse
+        s.go()
+        self.assertEqual(s.runs, [["--no-settings", "--roles", "cv", "--remote", "worldwide,africa,emea,europe,middle-east,my-timezone,unclear", "--aggregators", "--discover"]])
+        self.assertIn("Which roles?", s.text)
+        self.assertIn("Run it now?", s.text)
+
+    def test_a_one_off_change_is_not_saved_unless_you_say_so(self):
+        path = self.root / "settings.json"
+        settings.save(path, {"days": 15})
+        Session(["1", "2", "", "", "", "", "", "30", "y", "n", "n", "6"], self.root).go()  # change days to 30, run, don't save
+        self.assertEqual(settings.load(path)["days"], 15)
+        Session(["1", "2", "", "", "", "", "", "30", "y", "y", "n", "6"], self.root).go()  # and now do save
+        self.assertEqual(settings.load(path)["days"], 30)
+
+    def test_editing_the_saved_settings_from_the_search_question_comes_back_to_it(self):
+        path = self.root / "settings.json"
+        s = Session(["1", "3", row("days"), "7", row("done"), "", "n", "6"], self.root)  # Search, edit settings, days=7, Done, Search now
+        s.go()
+        self.assertEqual(settings.load(path)["days"], 7)
+        self.assertEqual(s.runs, [["--no-settings", "--days", "7"]])
+        self.assertEqual(s.text.count("Search with your saved settings?"), 2)  # asked again after the edit, with the new value
 
     def test_wizard_can_save_answers_as_defaults(self):
-        s = Session(["1", "3", "", "", "", "", "", "y", "y", "n", "6"], self.root)  # roles=web, run, save, no browse
+        s = Session(["1", "2", "3", "", "", "", "", "", "y", "y", "n", "6"], self.root)  # change, roles=web, run, save, no browse
         s.go()
         self.assertEqual(settings.load(self.root / "settings.json")["roles"], "web")
         self.assertEqual(s.runs, [["--no-settings", "--roles", "web"]])
 
     def test_declining_to_run_does_nothing(self):
-        s = Session(["1", "4", "1", "1", "", "", "", "n", "6"], self.root)
+        s = Session(["1", "2", "4", "", "1", "", "", "", "n", "6"], self.root)  # change, roles=any, remote done, ..., run? no
         s.go()
         self.assertEqual(s.runs, [])
 
@@ -80,9 +130,31 @@ class CliTests(unittest.TestCase):
         self.assertIn("1 of 2 roles · filters: text \"frontend\"", s.text)
 
     def test_filter_new_only(self):
-        s = Session(["2", "f", "3", "q", "6"], self.root)
+        s = Session(["2", "f", "4", "q", "6"], self.root)
         s.go()
         self.assertIn("1 of 2 roles · filters: new only", s.text)
+
+    def test_the_plain_browser_filters_by_job_board(self):
+        # browse, filter, "Job board" (3rd), then the 3rd choice: Any, Greenhouse, Lever -> Lever
+        s = Session(["2", "f", "3", "3", "q", "6"], self.root)
+        s.go()
+        self.assertIn("Job board", s.text)
+        self.assertIn("1 of 2 roles · filters: Lever", s.text)
+
+    def test_the_plain_browser_lists_only_the_boards_in_the_results_and_searches_by_name(self):
+        s = Session(["2", "f", "3", "1", "f", "1", "greenhouse", "q", "6"], self.root)
+        s.go()
+        options = s.text.split("\nJob board\n")[1].split(">")[0]  # the list's own heading, not the menu entry
+        self.assertIn("Greenhouse", options)
+        self.assertIn("Lever", options)
+        self.assertNotIn("Ashby", options)
+        self.assertIn("1 of 2 roles · filters: text \"greenhouse\"", s.text)
+
+    def test_clearing_the_filters_clears_the_board_too(self):
+        s = Session(["2", "f", "3", "2", "f", "5", "q", "6"], self.root)  # board Greenhouse, then Clear all filters
+        s.go()
+        self.assertIn("filters: Greenhouse", s.text)
+        self.assertIn("2 of 2 roles · filters: none", s.text)
 
     def test_open_marks_applied_and_removes_role(self):
         s = Session(["2", "1", "o", "a", "q", "6"], self.root)
@@ -126,19 +198,21 @@ class CliTests(unittest.TestCase):
 
     def test_settings_screen_changes_and_saves_each_kind_of_value(self):
         path = self.root / "settings.json"
-        # rows: 1 cv, 2 roles, 3 region, 4 sources, 5 drop senior, 6 show locked, 7 days, 8 browser, 9 theme, 10 open report, 11 mouse, 12 reset, 13 done
-        s = Session(["5", "2", "4", "3", "2", "5", "y", "7", "14", "8", "firefox {url}", "9", "7", "13", "6"], self.root)
+        # open settings, then change: roles -> 4th choice (every role), remote roles -> also tick Europe and Middle East, drop senior -> yes,
+        # days -> 14, browser -> text, theme -> 7th (Nord); then Done and quit
+        s = Session(["5", row("roles"), "4", row("remote"), "4 5", "", row("no_senior"), "y", row("days"), "14", row("browser"),
+                     "firefox {url}", row("theme"), "7", row("done"), "6"], self.root)
         s.go()
         got = settings.load(path)
-        self.assertEqual((got["roles"], got["region"], got["no_senior"], got["days"], got["browser"], got["theme"]),
-                         ("any", "emea", True, 14, "firefox {url}", "nord"))
+        self.assertEqual((got["roles"], got["remote"], got["no_senior"], got["days"], got["browser"], got["theme"]),
+                         ("any", ["worldwide", "africa", "emea", "europe", "middle-east", "my-timezone", "unclear"], True, 14, "firefox {url}", "nord"))
         self.assertIn("Roles", s.text)
         self.assertIn("every role", s.text)  # the list shows the current value
 
     def test_settings_keep_unknown_keys_and_show_current_values(self):
         path = self.root / "settings.json"
         path.write_text(json.dumps({"roles": "web", "note": "mine"}))
-        s = Session(["5", "13", "6"], self.root)
+        s = Session(["5", row("done"), "6"], self.root)
         s.go()
         self.assertIn("web and software", s.text)
         self.assertEqual(json.loads(path.read_text())["note"], "mine")
@@ -148,7 +222,7 @@ class CliTests(unittest.TestCase):
         cvdir.mkdir()
         (cvdir / "My_CV_General.txt").write_text("Python, Docker and PostgreSQL. React and TypeScript.")
         (cvdir / "notes.txt").write_text("not a cv")
-        s = Session(["5", "1", "1", "13", "6"], self.root)
+        s = Session(["5", row("cv"), "1", row("done"), "6"], self.root)
         s.cv_dirs = [cvdir]
         s.go()
         saved = settings.load(self.root / "settings.json")["cv"]
@@ -160,7 +234,8 @@ class CliTests(unittest.TestCase):
     def test_cv_picker_typed_path_with_spaces_and_bad_files(self):
         cvfile = self.root / "my cv.txt"
         cvfile.write_text("Python and Go developer. Docker, AWS.")
-        s = Session(["5", "1", "1", str(cvfile), "1", "1", "/nope/missing.pdf", "1", "1", str(self.root / "empty.txt"), "13", "6"], self.root)
+        s = Session(["5", row("cv"), "1", str(cvfile), row("cv"), "1", "/nope/missing.pdf", row("cv"), "1", str(self.root / "empty.txt"),
+                     row("done"), "6"], self.root)
         (self.root / "empty.txt").write_text("nothing relevant here")
         s.cv_dirs = []  # no files found: option 1 is "type a path"
         s.go()
@@ -170,13 +245,13 @@ class CliTests(unittest.TestCase):
 
     def test_cv_picker_can_clear_the_cv(self):
         settings.save(self.root / "settings.json", {"cv": "/some/cv.pdf"})
-        s = Session(["5", "1", "2", "13", "6"], self.root)  # no files found: 1 type a path, 2 don't use a CV
+        s = Session(["5", row("cv"), "2", row("done"), "6"], self.root)  # no files found: 1 type a path, 2 don't use a CV
         s.cv_dirs = []
         s.go()
         self.assertEqual(settings.load(self.root / "settings.json")["cv"], "")
 
     def test_settings_subcommand_goes_straight_to_the_screen(self):
-        s = Session(["13"], self.root)
+        s = Session([row("done")], self.root)
         cli.main(["settings"], inp=lambda p: s.answers.pop(0), out=s.lines.append, root=self.root, runner=s.runner, opener=s.opened.append)
         self.assertIn("Settings", s.text)
 
@@ -205,13 +280,13 @@ class CliTests(unittest.TestCase):
 
     def test_run_with_open_report_does_not_ask_to_browse_again(self):
         settings.save(self.root / "settings.json", {"open_report": True})
-        s = Session(["1", "", "", "", "", "", "", "", "6"], self.root)  # search, six questions, run; no "browse?" prompt
+        s = Session(["1", "", "6"], self.root)  # search, search now; the report opens itself, so no "browse?" prompt
         s.go()
         self.assertEqual(s.runs, [["--no-settings", "--open"]])
         self.assertNotIn("Browse the results?", s.text)
 
     def test_open_report_row_in_settings(self):
-        s = Session(["5", "10", "y", "13", "6"], self.root)
+        s = Session(["5", row("open_report"), "y", row("done"), "6"], self.root)
         s.go()
         self.assertTrue(settings.load(self.root / "settings.json")["open_report"])
         self.assertIn("Open report after run", s.text)
@@ -229,7 +304,8 @@ class CliTests(unittest.TestCase):
         tui.run_select = lambda title, prompt, options, default, screen=None, notes=(), preview=False: (
             calls.append((prompt, list(notes), preview)) or "y")
         try:
-            ui = cli.FancyUI(self.root, inp=lambda p: "", out=printed.append, runner=lambda argv: printed.append(("ran", argv)))
+            pauses = []
+            ui = cli.FancyUI(self.root, inp=lambda p: pauses.append(p) or "", out=printed.append, runner=lambda argv: printed.append(("ran", argv)))
             ui.screen = Screen()
             ui.say("  read 21 skills")
             ui.say("")  # blank messages are dropped
@@ -238,12 +314,17 @@ class CliTests(unittest.TestCase):
             self.assertEqual(calls, [("Settings", ["  read 21 skills"], True)])
             self.assertEqual(ui.notes, [])  # shown once, then cleared
             ui.say("First discovery scan")
-            ui.runner(["--open"])  # a run needs the normal terminal, and prints what was held first
-            self.assertEqual(printed, ["First discovery scan", ("ran", ["--open"])])
+            ui.runner(["--open"])  # a run needs the normal terminal: cleared, headed, and what was held printed first
+            self.assertEqual(len(printed), 3)
+            self.assertTrue(printed[0].startswith("\x1b[2J\x1b[H"))  # the screen is cleared before anything prints
+            self.assertIn("searching", printed[0])
+            self.assertEqual(printed[1:], ["First discovery scan", ("ran", ["--open"])])
+            self.assertEqual(len(pauses), 1)  # and it waits for Enter, so the result can be read
+            self.assertIn("Press Enter", pauses[0])
             self.assertEqual(Screen.closed, 1)
             ui.say("bye")
             ui.close()
-            self.assertEqual(printed[-1], "bye")
+            self.assertEqual(printed[-1], "bye")  # leaving for good prints what is still held, without clearing
         finally:
             tui.run_select = orig
 

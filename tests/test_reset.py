@@ -18,6 +18,11 @@ import reset  # noqa: E402
 import settings  # noqa: E402
 
 
+def row(name):
+    """The number to type for a row on the settings screen, found by name so adding a setting never breaks a test."""
+    return str((list(cli.FIELDS) + ["reset", "done"]).index(name) + 1)
+
+
 class Folder(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -147,7 +152,7 @@ class ResetFlowTests(Folder):
 
     def test_the_settings_list_keeps_a_gap_between_every_label_and_its_value(self):
         lines = []
-        cli.main(["settings"], inp=lambda p: "13", out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
+        cli.main(["settings"], inp=lambda p: row("done"), out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
         for line in "\n".join(lines).splitlines():
             if "Open report after run" in line:
                 self.assertRegex(line, r"Open report after run\s{2,}\S")
@@ -158,9 +163,9 @@ class ResetFlowTests(Folder):
         self.assertEqual(cli.main(["reset", "seen", "--yes"], inp=lambda p: "", out=lines.append, root=self.root, runner=lambda a: 0, fancy=False), 0)
         self.assertFalse(seen.exists())
         applied = self.put("applied.txt", "A | B\n")
-        # settings list: row 12 is Reset, row 13 is Done. Reset menu: 1 seen 2 results 3 cache 4 settings
-        # 5 applied 6 excluded (companies is hidden without a starter copy). So: Reset, applied, yes, Done.
-        answers = ["12", "5", "y", "13"]
+        # Reset menu: 1 seen 2 results 3 cache 4 settings 5 applied 6 excluded (companies is hidden without a
+        # starter copy). So: Reset, applied, yes, Done.
+        answers = [row("reset"), "5", "y", row("done")]
         with mock.patch.object(paths, "starter_file", lambda name: None):
             cli.main(["settings"], inp=lambda p: answers.pop(0), out=lines.append, root=self.root, runner=lambda a: 0, fancy=False)
         self.assertEqual(applied.read_text(), "")
@@ -205,7 +210,7 @@ class DamagedSeenTests(Folder):
         self.assertEqual(jr.load_seen(self.root / "seen.json"), (set(), None))  # the next run is clean
 
     def test_wrong_shapes_count_as_damaged_too(self):
-        for text in ('{"a": 1}', '"x"', "null", ""):
+        for text in ('"x"', "null", "", "42", "true"):  # a list or a mapping are the two valid shapes; anything else is damaged
             self.put("seen.json", text)
             self.assertIsNotNone(jr.load_seen(self.root / "seen.json")[1], text)
 

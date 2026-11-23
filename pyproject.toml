@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jobradar"
 version = "0.1.0"
-description = "Find remote jobs you can actually take, straight from companies' own job boards."
+description = "Find jobs you can actually take, remote or on-site, straight from companies' own job boards."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -26,7 +26,7 @@ jobradar-cv = "entry:cv"
 Homepage = "https://github.com/Desmond123-arch/jobradar"
 
 [tool.setuptools]
-py-modules = ["jobradar", "cli", "tui", "settings", "openurl", "cvmatch", "paths", "entry", "reset"]
+py-modules = ["jobradar", "cli", "tui", "settings", "openurl", "cvmatch", "paths", "entry", "reset", "timezones", "scopes", "sources"]
 
 # Starter files, copied into ~/.jobradar on first run (see paths.py).
 [tool.setuptools.data-files]

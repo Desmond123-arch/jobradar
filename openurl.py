@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import sys
 import webbrowser
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import paths
 
@@ -30,6 +30,8 @@ WSL_CHROME = [
     "/mnt/c/Program Files (x86)/Google/Chrome/Application/chrome.exe",
 ]
 WSL_CHROME_GLOB = "/mnt/c/Users/*/AppData/Local/Google/Chrome/Application/chrome.exe"
+WSL_EXPLORER = ["/mnt/c/Windows/explorer.exe", "/mnt/c/WINDOWS/explorer.exe"]  # opens whatever Windows' default browser is
+TEXT_BROWSERS = {"lynx", "links", "links2", "elinks", "w3m", "www-browser", "browsh"}  # they would take over the terminal
 
 
 def in_wsl():
@@ -74,9 +76,12 @@ def resolve(setting="", env=None, wsl=None, platform=None, exists=os.path.exists
 
     if choice and choice.lower() not in ("chrome", "default", "auto"):
         argv = shlex.split(choice, posix=(platform != "win32"))
+        argv = [a[1:-1] if len(a) > 1 and a[0] == a[-1] == '"' else a for a in argv]  # Windows splitting keeps the quotes
         if "{url}" not in " ".join(argv):
             argv.append("{url}")
-        return argv, Path(argv[0]).stem or argv[0]
+        exe = argv[0]
+        name = PureWindowsPath(exe).stem if "\\" in exe else Path(exe).stem  # a Windows path, wherever it is parsed
+        return argv, name or exe
     if choice.lower() == "default":
         return None, "your default browser"
 
@@ -88,6 +93,10 @@ def resolve(setting="", env=None, wsl=None, platform=None, exists=os.path.exists
         return None, "your default browser (Chrome not found)"
     if wsl and which("wslview"):
         return ["wslview", "{url}"], "your Windows default browser"
+    if wsl:  # every WSL install can reach Windows' own explorer.exe, which opens the default browser
+        for candidate in WSL_EXPLORER:
+            if exists(candidate):
+                return [candidate, "{url}"], "your Windows default browser"
     return None, "your default browser"
 
 
@@ -112,7 +121,20 @@ def detach_kwargs(name=None):
     return {"start_new_session": True}
 
 
-def open_url(url, setting=None, runner=subprocess.Popen, fallback=webbrowser.open, **kw):
+def default_browser_open(url):
+    """Open url in the system's default graphical browser. A text-mode browser (lynx, w3m...) is never used: it would
+    take over the terminal this program is drawing on. Returns True if a browser was started."""
+    try:
+        browser = webbrowser.get()
+    except webbrowser.Error:
+        return False
+    name = os.path.basename(str(getattr(browser, "name", "") or getattr(browser, "basename", ""))).lower()
+    if name in TEXT_BROWSERS:
+        return False
+    return bool(browser.open(url))
+
+
+def open_url(url, setting=None, runner=subprocess.Popen, fallback=default_browser_open, **kw):
     """Open url. Returns (ok, label); never raises, so a missing browser can't crash the UI."""
     if not url:
         return False, "no link"

@@ -31,11 +31,13 @@ class LoadSaveTests(FileCase):
             self.assertEqual(settings.load(self.path), settings.DEFAULTS, text)
 
     def test_invalid_values_fall_back_one_at_a_time(self):
-        self.path.write_text(json.dumps({"roles": "nonsense", "region": "emea", "days": 0, "no_senior": "yes",
+        self.path.write_text(json.dumps({"roles": "nonsense", "remote": ["africa"], "days": 0, "no_senior": "yes",
                                          "show_all": True, "cv": 5, "theme": "nord", "sources": ["all"]}))
         got = settings.load(self.path)
-        self.assertEqual((got["roles"], got["region"], got["days"], got["no_senior"], got["show_all"], got["cv"], got["theme"], got["sources"]),
-                         ("ai", "emea", 30, False, True, "", "nord", "list"))
+        self.assertEqual((got["roles"], got["remote"], got["days"], got["no_senior"], got["show_all"], got["cv"], got["theme"], got["sources"]),
+                         ("ai", ["africa"], 30, False, True, "", "nord", "list"))
+        self.path.write_text(json.dumps({"remote": ["mars"]}))
+        self.assertEqual(settings.load(self.path)["remote"], list(settings.DEFAULTS["remote"]))  # a bad list is not half-used
 
     def test_days_must_be_a_real_integer_in_range(self):
         for bad in (True, 2.5, 366, -3, "7"):
@@ -63,6 +65,16 @@ class LoadSaveTests(FileCase):
         self.assertEqual(settings.load(self.path)["cv"], "/home/me/résumé.pdf")
 
 
+class ExampleFileTests(unittest.TestCase):
+    def test_the_example_settings_file_lists_exactly_the_real_settings_with_valid_values(self):
+        example = json.loads((Path(__file__).resolve().parent.parent / "settings.example.json").read_text())
+        self.assertEqual(set(example), set(settings.DEFAULTS))  # a new setting must be added here too
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "s.json"
+            path.write_text(json.dumps(example))
+            self.assertEqual(settings.load(path), {**example, "cv": example["cv"]})  # nothing was rejected as invalid
+
+
 class ToArgsTests(unittest.TestCase):
     def args(self, **kw):
         return settings.to_args(dict(settings.DEFAULTS, **kw))
@@ -78,7 +90,8 @@ class ToArgsTests(unittest.TestCase):
         self.assertEqual(self.args(roles="cv"), ["--roles", "cv"])
         self.assertEqual(self.args(roles="web"), ["--roles", "web"])
         self.assertEqual(self.args(roles="any"), ["--any-role"])
-        self.assertEqual(self.args(region="emea"), ["--emea"])
+        self.assertEqual(self.args(remote=["africa", "my-timezone"]), ["--remote", "africa,my-timezone"])
+        self.assertEqual(self.args(remote=[]), ["--remote", ""])  # nothing ticked is a real choice, not "use the default"
         self.assertEqual(self.args(sources="agg"), ["--aggregators"])
         self.assertEqual(self.args(sources="all"), ["--aggregators", "--discover"])
         self.assertEqual(self.args(no_senior=True, show_all=True, days=7), ["--no-senior", "--all", "--days", "7"])
@@ -87,9 +100,9 @@ class ToArgsTests(unittest.TestCase):
 
 class ParseArgsTests(FileCase):
     def test_settings_supply_defaults_and_flags_win(self):
-        settings.save(self.path, {"roles": "web", "region": "emea", "days": 14, "sources": "agg"})
+        settings.save(self.path, {"roles": "web", "remote": ["emea"], "days": 14, "sources": "agg"})
         args = jr.parse_args([], self.path)
-        self.assertEqual((args.roles, args.emea, args.days, args.aggregators, args.discover), ("web", True, 14, True, False))
+        self.assertEqual((args.roles, args.remote, args.days, args.aggregators, args.discover), ("web", "emea", 14, True, False))
         args = jr.parse_args(["--days", "3", "--roles", "cv"], self.path)
         self.assertEqual((args.days, args.roles), (3, "cv"))
 
@@ -100,9 +113,9 @@ class ParseArgsTests(FileCase):
         self.assertFalse(jr.parse_args(["--no-settings"], self.path).open)
 
     def test_no_settings_ignores_the_file(self):
-        settings.save(self.path, {"roles": "web", "region": "emea"})
+        settings.save(self.path, {"roles": "web", "remote": ["emea"]})
         args = jr.parse_args(["--no-settings"], self.path)
-        self.assertEqual((args.roles, args.emea), (None, False))
+        self.assertEqual((args.roles, args.remote), (None, "worldwide,africa,emea,my-timezone,unclear"))
 
     def test_a_broken_file_does_not_stop_a_run(self):
         self.path.write_text("{{{")
