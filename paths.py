@@ -37,6 +37,23 @@ def seed(folder):
                 target.write_text("# One careers URL per line, e.g. https://jobs.ashbyhq.com/<company>\n", encoding="utf-8")
 
 
+def atomic_write(path, text, encoding="utf-8"):
+    """Save a file so that Ctrl+C, a crash or a closed window can never leave half of it: write a temporary
+    copy next to it, then swap it in. Readers see the old file or the new one, never a cut-off one."""
+    path = Path(path)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding=encoding)
+    os.replace(tmp, path)
+
+
+def starter_file(name):
+    """The starter copy of a file that the installer shipped, or None when running from a git checkout."""
+    for d in _starter_dirs():
+        if (d / name).exists():
+            return d / name
+    return None
+
+
 def data_dir():
     env = os.environ.get("JOBRADAR_HOME")
     if env:

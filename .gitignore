@@ -45,3 +45,8 @@ settings.json
 cv.*
 resume.*
 themes.html
+
+# --- Safety copies made by reset, and files left by an interrupted save (personal data) ---
+*.bak
+*.damaged
+*.tmp

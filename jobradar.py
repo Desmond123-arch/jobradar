@@ -30,6 +30,7 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -123,6 +124,13 @@ class Progress:
         self.stream.flush()
         self._draw()
 
+    def abort(self):
+        """End the bar's line cleanly when a run is stopped half way."""
+        if self.enabled and self.active and self.tty:
+            self.stream.write("\r\x1b[K")
+            self.stream.flush()
+        self.active = False
+
     def finish(self, note=""):
         if not (self.enabled and self.active):
             return
@@ -133,6 +141,19 @@ class Progress:
 
 
 PROGRESS = Progress(enabled=False)
+
+STOP = threading.Event()  # set when a run is cancelled, so requests already queued give up at once
+
+
+def pooled(workers, fn, items):
+    """pool.map that cancels the queued work and stops waiting the moment the caller is interrupted (Ctrl+C),
+    instead of finishing thousands of requests first."""
+    pool = ThreadPoolExecutor(max_workers=max(1, workers))
+    try:
+        yield from pool.map(fn, items)
+    finally:
+        STOP.set()
+        pool.shutdown(wait=False, cancel_futures=True)
 
 
 def use_progress(progress):
@@ -178,6 +199,8 @@ def read_lines(path: Path):
 def fetch_json(url: str, tries: int = 3):
     last = None
     for attempt in range(tries):
+        if STOP.is_set():
+            raise ConnectionError("stopped")
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=30) as resp:
@@ -506,18 +529,17 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
 
     all_jobs, board_keys = [], set()
     PROGRESS.start("Reading job boards", len(todo))
-    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-        for c, jobs, exc in pool.map(load, todo):
-            PROGRESS.advance()
-            if exc is None:
-                counts["boards"] += 1
-                all_jobs.extend(jobs)
-            elif c.get("discovered"):
-                counts["dead"] += 1  # guessed slugs are often not boards; don't list them as problems
-                if isinstance(exc, LookupError) and dead_out is not None:
-                    dead_out.add(f"{c['provider']}:{c['slug']}")
-            else:
-                problems.append(f"{c['name']} ({c['provider']}:{c['slug']}): {exc}")
+    for c, jobs, exc in pooled(workers, load, todo):
+        PROGRESS.advance()
+        if exc is None:
+            counts["boards"] += 1
+            all_jobs.extend(jobs)
+        elif c.get("discovered"):
+            counts["dead"] += 1  # guessed slugs are often not boards; don't list them as problems
+            if isinstance(exc, LookupError) and dead_out is not None:
+                dead_out.add(f"{c['provider']}:{c['slug']}")
+        else:
+            problems.append(f"{c['name']} ({c['provider']}:{c['slug']}): {exc}")
     PROGRESS.finish(f"{counts['boards']:,} boards read, {counts['dead']:,} had none")
     board_keys = {(norm(j.company), norm(j.title)) for j in all_jobs}
     for j in extra_jobs:
@@ -557,9 +579,8 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
     to_hydrate = [j for j in pending if j.detail_url]
     if to_hydrate:
         PROGRESS.start("Reading postings", len(to_hydrate))
-        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-            for _ in pool.map(lambda j: hydrate(j, fetch), to_hydrate):
-                PROGRESS.advance()
+        for _ in pooled(workers, lambda j: hydrate(j, fetch), to_hydrate):
+            PROGRESS.advance()
         PROGRESS.finish(f"{len(to_hydrate):,} postings")
     for job in pending:
         if job.detail_url:  # the description may reveal a lock the location didn't
@@ -792,7 +813,7 @@ def load_discovery(path, refresh=False, text=fetch_text, now=None):
         slugs, problems = discover_slugs(text)
         cache = {"at": now.isoformat(), "slugs": slugs, "dead": []}
         if all(slugs.values()):  # a scan where a source was down would hide boards for 30 days
-            path.write_text(json.dumps(cache))
+            paths.atomic_write(path, json.dumps(cache))
     return cache, problems
 
 
@@ -1194,7 +1215,39 @@ def parse_args(argv=None, settings_path=None):
     return ap.parse_args(flags + argv)
 
 
+def load_seen(path):
+    """The role keys already shown, and a note if the file had to be set aside. A damaged file (a save that was
+    cut off) is moved to <name>.damaged so it can never stop every future run."""
+    path = Path(path)
+    if not path.exists():
+        return set(), None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("not a list")
+        return {str(x) for x in data}, None
+    except (ValueError, OSError):
+        aside = path.with_name(path.name + ".damaged")
+        try:
+            os.replace(path, aside)
+        except OSError:
+            aside = None
+        kept = f"; the old file is kept as {aside.name}" if aside else ""
+        return set(), f"{path.name} was damaged (a run was probably cut off while saving), so every role counts as new this time{kept}"
+
+
 def main(argv=None):
+    """Run a search. Ctrl+C stops it cleanly: nothing is half-saved, so your files are exactly as they were."""
+    try:
+        return _main(argv)
+    except KeyboardInterrupt:
+        PROGRESS.abort()
+        print("\nStopped. Your results, seen list and settings are as they were.")
+        return 130
+
+
+def _main(argv=None):
+    STOP.clear()
     for stream in (sys.stdout, sys.stderr):  # a Windows code page must not crash a run over a "·" or an emoji
         try:
             stream.reconfigure(errors="replace")
@@ -1233,7 +1286,9 @@ def main(argv=None):
         return 1
 
     state_path = HERE / "seen.json"
-    seen = set(json.loads(state_path.read_text())) if state_path.exists() else set()
+    seen, seen_note = load_seen(state_path)
+    if seen_note:
+        problems.append(seen_note)
     now = datetime.now(timezone.utc)
     print(f"checking {len(companies)} job boards...")
     dead = set()
@@ -1257,11 +1312,13 @@ def main(argv=None):
     problems += run_problems
     if cache is not None and dead:
         cache["dead"] = sorted(set(cache.get("dead", [])) | dead)
-        cache_path.write_text(json.dumps(cache))
-    Path(args.out).write_text(render(jobs, problems, counts, args.days, now,
-                                       "outside the role filter" if (args.roles or args.any_role) else "not an AI or engineering title"), encoding="utf-8")
-    state_path.write_text(json.dumps(sorted(seen | {j.key for j in jobs}), indent=0))
-    (HERE / "jobs.json").write_text(json.dumps([asdict(j) | {"description": j.description[:400]} for j in jobs], indent=2))
+        paths.atomic_write(cache_path, json.dumps(cache))
+    # Each file is saved whole or not at all. The seen list goes last: if a run is cut off before it, the roles
+    # just show as new again instead of being marked seen without ever reaching your results.
+    paths.atomic_write(args.out, render(jobs, problems, counts, args.days, now,
+                                        "outside the role filter" if (args.roles or args.any_role) else "not an AI or engineering title"))
+    paths.atomic_write(HERE / "jobs.json", json.dumps([asdict(j) | {"description": j.description[:400]} for j in jobs], indent=2))
+    paths.atomic_write(state_path, json.dumps(sorted(seen | {j.key for j in jobs}), indent=0))
 
     new = [j for j in jobs if j.new]
     print(f"\n{len(jobs)} matching roles, {len(new)} new.\n")

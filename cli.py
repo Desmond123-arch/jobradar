@@ -8,6 +8,7 @@
 
   python cli.py browse    go straight to the full-screen browser
   python cli.py settings  go straight to settings
+  python cli.py reset     put things back to a fresh start (asks first; keeps a .bak of your lists)
   python cli.py themes    preview every color theme in your browser
   python cli.py --plain   plain prompts instead of the full-screen interface
 
@@ -24,6 +25,8 @@ from pathlib import Path
 import cvmatch
 import jobradar as jr
 import openurl
+import paths
+import reset
 import settings
 
 PAGE = 10
@@ -252,19 +255,48 @@ def edit_one(ui, key, path):
                                                 s["theme"] if s["theme"] in tui.THEMES else tui.DEFAULT_THEME, preview=True)})
 
 
+def reset_flow(ui, keys=None, assume_yes=False):
+    """Choose what to reset, show exactly what will happen, ask, then do it. Returns an exit code."""
+    root = ui.root
+    if not keys:
+        options = [(k, reset.ITEMS[k][0]) for k in reset.available(root)] + [("all", "Everything above")]
+        keys = [ui.choose("What do you want to reset?", options, "seen")]
+    try:
+        todo = reset.plan(root, keys)
+    except ValueError as exc:
+        ui.say(str(exc))
+        return 2
+    if not todo:
+        ui.say("  Nothing to reset: those files don't exist yet.")
+        return 0
+    ui.say("This will:")
+    for _, path, how in todo:
+        ui.say("  - " + reset.describe(path, how))
+    if not assume_yes and not ui.yes("Go ahead?", False):
+        ui.say("  Nothing was changed.")
+        return 0
+    for line in reset.apply(root, keys):
+        ui.say("  " + line)
+    return 0
+
+
 def edit_settings(ui):
     """The settings list: pick a row to change it. Saved to settings.json as you go."""
     path = ui.path("settings.json")
     last = "cv"
     while True:
         s = settings.load(path)
-        options = [(k, f"{NAMES[k]:<20}{describe(k, s[k])}") for k in FIELDS] + [("done", "Done")]
+        wide = max(len(n) for n in NAMES.values()) + 2
+        options = [(k, f"{NAMES[k]:<{wide}}{describe(k, s[k])}") for k in FIELDS] + [("reset", "Reset things..."), ("done", "Done")]
         key = ui.choose("Settings", options, last)
         if key == "done":
             return
         last = key
         try:
-            edit_one(ui, key, path)
+            if key == "reset":
+                reset_flow(ui)
+            else:
+                edit_one(ui, key, path)
         except Back:
             pass  # Esc inside a question: back to this list
 
@@ -318,7 +350,7 @@ def describe_filters(f):
 def append_line(path, line):
     existing = path.read_text(encoding="utf-8") if path.exists() else ""
     sep = "" if not existing or existing.endswith("\n") else "\n"
-    path.write_text(existing + sep + line + "\n", encoding="utf-8")
+    paths.atomic_write(path, existing + sep + line + "\n")
 
 
 def mark_applied(ui, job):
@@ -492,8 +524,10 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
     ui = (FancyUI if fancy else UI)(root, inp, out, runner, opener)
     ui.cv_dirs = cv_dirs
     menu_ran = False
+    words = [a for a in argv if not a.startswith("-")]
+    command = words[0] if words else None  # only the first word picks the command: "reset settings" resets settings
     try:
-        if "settings" in argv:
+        if command == "settings":
             try:
                 edit_settings(ui)
             except Back:
@@ -504,13 +538,18 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
         if not fancy and ui.prefers_web():
             ui.say("Tip: for the full-screen interface, run  pip install windows-curses  (or use WSL). "
                    "Until then, Browse opens the interactive report in your browser.")
-        if "browse" in argv:
+        if command == "reset":
+            try:
+                return reset_flow(ui, words[1:] or None, assume_yes=("--yes" in argv or "-y" in argv))
+            except Back:
+                return 0
+        if command == "browse":
             try:
                 browse(ui)
             except Back:
                 pass
             return 0
-        if "themes" in argv:
+        if command == "themes":
             return show_themes(ui)
         if not fancy:
             ui.say("Job Radar")

@@ -19,6 +19,8 @@ Job Radar reads the job boards that companies publish themselves, keeps the role
 - [Three ways to look at your results](#three-ways-to-look-at-your-results)
 - [Make it yours: settings](#make-it-yours-settings)
 - [Find more jobs](#find-more-jobs)
+- [Start over: reset](#start-over-reset)
+- [If a search is stopped](#if-a-search-is-stopped)
 - [How it decides what to show](#how-it-decides-what-to-show)
 - [Themes](#themes)
 - [Command line cheat sheet](#command-line-cheat-sheet)
@@ -193,6 +195,45 @@ To find the right address, open a job posting and click Apply. If the address st
 
 ---
 
+## Start over: reset
+
+Want a clean slate? Choose **Settings → Reset things...**, or run it from the command line:
+
+```bash
+python cli.py reset              # pick from a list
+python cli.py reset seen         # or name what to reset
+python cli.py reset all --yes    # --yes skips the "are you sure?" question
+```
+
+It always shows you exactly what it is about to do and asks first. Pressing Enter at the question means **no**.
+
+| Reset | What it does |
+|-------|--------------|
+| `seen` | Forgets what you have seen, so every role shows as **NEW** again |
+| `results` | Deletes the last results and report |
+| `cache` | Deletes the saved list of boards, so the next search scans for them again |
+| `settings` | Puts your settings back to the defaults |
+| `applied` | Empties your applied list |
+| `excluded` | Empties your excluded companies |
+| `companies` | Restores the starter company list (installed copies only) |
+| `all` | All of the above |
+
+**Your work is not lost.** Before changing your settings, applied list, excluded list or company list, Job Radar copies each one to a `.bak` file next to it (`settings.json.bak`, `applied.txt.bak`, and so on), so one undo is always there. The files it can rebuild itself (results, the seen list, the board cache) are simply deleted. Your CV is never touched, and neither is `companies.txt` unless you ask for `companies`.
+
+---
+
+## If a search is stopped
+
+You can press **Ctrl+C** during a search, or close the window, at any time.
+
+- **Ctrl+C** stops it within a few seconds (it lets the requests already under way finish), says *"Stopped. Your results, seen list and settings are as they were."*, and leaves your files exactly as they were. Nothing is half-saved.
+- **Closing the window** works the same way. Every file is saved in one step: a temporary copy is written first, then swapped in. So a file is either the old complete one or the new complete one, never a cut-off mix.
+- **Results are saved at the very end.** A search stopped half way gives you no new results, but costs you nothing. Run it again. If it had already finished scanning for boards, that list is kept, so the second run is quicker.
+- **The seen list is saved last.** If a run is cut off just before it, those roles simply show as **NEW** again, instead of being marked "seen" without you ever having been shown them.
+- **If a file is ever damaged** anyway (a power cut, a full disk), Job Radar does not crash. It moves the bad `seen.json` aside as `seen.json.damaged`, tells you in the results, and carries on as if it were a first run.
+
+---
+
 ## How it decides what to show
 
 ```
@@ -275,7 +316,7 @@ python jobradar.py --open            # open report.html when it finishes
 | `--out PATH` | Write the report somewhere else |
 | `--no-settings` | Ignore `settings.json` for this run |
 
-The menu has shortcuts too: `python cli.py browse`, `settings`, `themes`, and `--plain` for simple numbered questions instead of the full-screen menu.
+The menu has shortcuts too: `python cli.py browse`, `settings`, `themes`, `reset`, and `--plain` for simple numbered questions instead of the full-screen menu.
 
 ---
 
@@ -310,7 +351,9 @@ Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 
 **"I see odd characters instead of a progress bar."** Set the environment variable `NO_COLOR=1` for plain lines.
 
-**"I want to start fresh."** Delete `seen.json` to forget what you have seen, and `settings.json` to go through setup again.
+**"I want to start fresh."** Use [reset](#start-over-reset): `python cli.py reset`. It asks first and keeps a `.bak` of your lists.
+
+**"I stopped a search part way."** Nothing is lost or broken. See [If a search is stopped](#if-a-search-is-stopped).
 
 ---
 
@@ -338,7 +381,8 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `settings.py` | Reads and writes your settings, finds your CV |
 | `cvmatch.py` | Reads your CV and scores jobs against it |
 | `openurl.py` | Opens links in the right browser |
-| `paths.py` | Decides where your files live: the folder, or `~/.jobradar` when installed |
+| `paths.py` | Decides where your files live, and saves files safely so a stopped run can't damage them |
+| `reset.py` | Puts things back to a fresh start, keeping a `.bak` of your lists |
 | `entry.py` | The commands `jobradar`, `jobradar-search` and `jobradar-cv` |
 | `pyproject.toml` | What makes it installable with pipx, uv or pip |
 | `companies.txt` | Companies to search. Yours to edit |
@@ -347,6 +391,7 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `settings.json` | Your settings. Not shared |
 | `settings.example.json` | A starting copy |
 | `report.html`, `jobs.json`, `seen.json`, `discovered.json` | Created for you. Not shared |
+| `*.bak`, `*.damaged` | Safety copies made by reset, or of a damaged file. Safe to delete |
 | `docs/images/` | The pictures in this README |
 | `tests/` | The tests |
 

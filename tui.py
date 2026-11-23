@@ -454,7 +454,7 @@ def select_frame(title, prompt, options, cursor, h, w, hint="↑/↓ move • en
     prompt; extra rows go below the options. The key hints are always the final row returned, even when the
     content has to be cut to fit a short window."""
     rows = [[(f" {title} ", "badge")], [], [(prompt, "accent")]]
-    lines = [ln for n in notes for ln in str(n).splitlines() if ln.strip()][-4:]
+    lines = [ln for n in notes for ln in str(n).splitlines() if ln.strip()][-10:]
     rows += [[(clip(ln.strip(), w - 2), "dim")] for ln in lines]
     rows.append([])
     for i, (_, label) in enumerate(options):
