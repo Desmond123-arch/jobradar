@@ -1,8 +1,8 @@
 # Job Radar
 
-**Find remote and EMEA jobs across thousands of companies, in one place, from your terminal.**
+**Find jobs you can actually take, remote or on-site, anywhere in the world, across thousands of companies, in one place, from your terminal.**
 
-Job Radar reads the job boards that companies publish themselves, keeps the roles that fit you, and shows them in a full-screen browser or a web page. It is free, needs no account or API key, and has nothing to install except Python.
+Job Radar reads the job boards that companies publish themselves, keeps the roles that fit you, and shows them in a full-screen browser or a web page. Remote or on-site, one country or the whole world: you decide. It is free, needs no account or API key, and has nothing to install except Python.
 
 > **Credit.** Job Radar started as [OsasDTEch/jobradar](https://github.com/OsasDTEch/jobradar). The idea, the job-board readers, the region check, the fit score and the first report are all from that project. This version builds on it. See [Credits](#credits).
 
@@ -18,13 +18,16 @@ Job Radar reads the job boards that companies publish themselves, keeps the role
 - [Quick start](#quick-start)
 - [Three ways to look at your results](#three-ways-to-look-at-your-results)
 - [Make it yours: settings](#make-it-yours-settings)
+- [Which remote roles you get](#which-remote-roles-you-get)
+- [Time zones and on-site roles](#time-zones-and-on-site-roles)
 - [Find more jobs](#find-more-jobs)
 - [Start over: reset](#start-over-reset)
 - [If a search is stopped](#if-a-search-is-stopped)
+- [What grows, and what doesn't](#what-grows-and-what-doesnt)
 - [How it decides what to show](#how-it-decides-what-to-show)
 - [Themes](#themes)
 - [Command line cheat sheet](#command-line-cheat-sheet)
-- [Windows and PowerShell](#windows-and-powershell)
+- [Your system: Windows, WSL, macOS and Linux](#your-system-windows-wsl-macos-and-linux)
 - [Troubleshooting](#troubleshooting)
 - [Run it every morning](#run-it-every-morning)
 - [Files in this project](#files-in-this-project)
@@ -37,8 +40,8 @@ Job Radar reads the job boards that companies publish themselves, keeps the role
 ## What it does
 
 1. **Collects jobs** from the public job boards behind [Greenhouse](https://boards-api.greenhouse.io), [Lever](https://api.lever.co/v0/postings) and [Ashby](https://api.ashbyhq.com/posting-api/job-board), plus the job sites Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News "Who is hiring?".
-2. **Keeps the ones that fit you.** You choose the kind of role, the region, and how far back to look. Roles you have applied to, and companies you have ruled out, never show up.
-3. **Scores them against your CV**, so you can see which roles match the skills you actually have.
+2. **Keeps the ones that fit you.** You choose the kind of role, which kinds of remote role you want (or on-site roles instead, or as well, in the places you name or anywhere), and how far back to look. Roles you have applied to, and companies you have ruled out, never show up.
+3. **Scores them against your CV**, if you give it one, so you can see which roles match the skills you actually have. A CV is optional: without one, everything still works, you just don't get the match scores.
 4. **Shows you what is new** since the last time you looked.
 
 It never applies for anything. It only finds and sorts.
@@ -85,13 +88,13 @@ On macOS and Linux you may need `python3` instead of `python`. An installed copy
 
 **Where your files live.** Run from the folder, everything stays in the folder, as before. Installed, your company list, settings, results and report live in `~/.jobradar` (`C:\Users\you\.jobradar` on Windows). The first run copies the starter company list there. To use a different folder, set `JOBRADAR_HOME`.
 
-**3. Answer a few questions.** The first time, it asks about your CV, the roles you want, your region and your colors. You can change every answer later.
+**3. Answer a few questions.** The first time, it asks about your CV, the roles you want, which kinds of remote role you want, your time zone (it starts on this computer's) and your colors. You can change every answer later.
 
 <p align="center">
   <img src="docs/images/menu.svg" alt="The main menu" width="560">
 </p>
 
-**4. Choose "Search for jobs".** It asks a few more things, then runs. A progress bar shows how far along it is. When it finishes, choose **Browse the last results**.
+**4. Choose "Search for jobs".** It shows a short summary of your saved settings and the first choice is **Search now**, so one Enter runs it. You are never made to answer the questions again: change a few answers for one search, or edit the saved settings, only if you want to. The screen clears and a progress bar shows how far along it is. When it finishes, read the summary, press **Enter**, and choose **Browse the last results**.
 
 That is all. Run it again tomorrow and anything new is marked **NEW**.
 
@@ -111,10 +114,11 @@ Choose **Browse the last results** in the menu, or run `python cli.py browse`. M
 
 | Key | What it does |
 |-----|--------------|
-| `↑` `↓` (or `j` `k`) | Move. `PgUp` `PgDn` to page, `g` `G` for top and bottom |
+| `↑` `↓` (or `j` `k`) | Move. `PgUp` `PgDn` (or Space) to page, `g` `G` for top and bottom |
 | `Enter` | **Open the posting in your browser** |
 | `/` | Filter as you type. Several words must all match. `"in quotes"` keeps a phrase. `-word` leaves a word out |
-| `r` | Cycle the region: Africa/EMEA, EMEA, Worldwide, Check location |
+| `r` | Cycle through the kinds of role in your list: Africa, EMEA, Worldwide, Check location and so on |
+| `b` | Cycle through the **job boards** in your results: Greenhouse, Lever, Ashby, Hacker News and so on. Combines with `r` |
 | `n` | Show only new roles |
 | `s` | Cycle the sort: best match, fit score, newest, company |
 | `a` | Mark as applied. It is saved and hidden from now on |
@@ -133,14 +137,14 @@ Choose **Browse the last results** in the menu, or run `python cli.py browse`. M
 | Double-click a role | Open the posting |
 | Click the link (or "enter open in ...") in the details panel | Open the posting |
 | Scroll the wheel | Move up and down the list. In a menu, it moves the highlight |
-| Click a hint along the bottom (`region`, `new`, `sort`, `theme`, `applied`, `exclude`, `quit` and the rest) | Do exactly what pressing that key does |
+| Click a hint along the bottom (`region`, `board`, `new`, `sort`, `theme`, `applied`, `exclude`, `quit` and the rest) | Do exactly what pressing that key does. In a narrow window the least important hints are left out first; `?` always lists every key |
 | Click an option in any menu | Choose it |
 
 A mouse also steals the terminal's normal click-and-drag text selection. To copy text, hold **Shift** while you drag (in most terminals), or switch the mouse off: set **Mouse** to *off* in Settings, or run with `JOBRADAR_MOUSE=0`. It uses the standard xterm mouse protocol, which most modern terminals understand. In tmux, if clicks do nothing, try `tmux set -g mouse on`.
 
 ### 2. The web report
 
-Every search writes **`report.html`**: a page you open in any browser, with search, filters, sorting and a card or table view. Roles show a **CV %** badge when you have set a CV. Turn on **Open report after run** in Settings and it opens by itself when a search finishes.
+Every search writes **`report.html`**: a page you open in any browser, with search, a card or table view, sorting, and two rows of filter buttons: the **kind of remote role** and the **job board** (Greenhouse, Lever, Hacker News and so on). Each button shows how many roles it would leave, and the two rows work together, so you can ask for "Africa roles from Ashby". Every card says which board it came from, and typing a board's name in the search box finds its roles. Roles show a **CV %** badge when you have set a CV. Turn on **Open report after run** in Settings and it opens by itself when a search finishes.
 
 <p align="center">
   <img src="docs/images/report.png" alt="The web report" width="760">
@@ -164,7 +168,11 @@ Choose **Settings** in the menu, or run `python cli.py settings`. Everything is 
 |---------|--------------|---------|
 | **CV file** | Your CV. Jobs are scored against the skills in it, and the role filter follows them | Pick from the list it finds, or paste a path |
 | **Roles** | Which job titles to keep | AI and engineering · match my CV · web and software · every role |
-| **Region** | Where the job can be | Africa and worldwide remote · all of EMEA |
+| **Remote roles** | Which kinds of remote role you want. A checklist: see [Which remote roles you get](#which-remote-roles-you-get) | tick any of nine kinds |
+| **Time zone** | Where you are. Pick from a scrolling list, or leave it on *auto* to use this computer's | auto · UTC-12 to UTC+14, with cities |
+| **Time zone range** | How many hours from your zone you are happy to work | same zone · within 1 to 12 hours · any (no filter). Default 3 |
+| **On-site roles** | Also keep on-site and hybrid roles, not only remote ones | yes / no |
+| **On-site places** | Where you would work on-site, for example `Accra, Ghana`. Blank means anywhere | text |
 | **Companies** | How wide to search | `companies.txt` only · plus job sites · every board it can find |
 | **Drop senior titles** | Hide senior, staff, lead and manager roles | yes / no |
 | **Show locked roles** | Also show roles limited to places you cannot work from | yes / no |
@@ -180,6 +188,59 @@ Choose **Settings** in the menu, or run `python cli.py settings`. Everything is 
 - Anything you type on the command line beats the settings file. `--no-settings` ignores the file for one run.
 - A missing or wrong value falls back to the default. A typo cannot stop a search.
 - `settings.example.json` shows what the file looks like.
+
+---
+
+## Which remote roles you get
+
+Job sites let you tick the kinds of remote job you want. So does Job Radar. Open **Settings → Remote roles** (or answer it when you start a search) and tick any you like. **A role shows if it matches any box you ticked.** Worldwide is just one box, so you do not need it.
+
+<p align="center">
+  <img src="docs/images/remote.svg" alt="The remote roles checklist" width="760">
+</p>
+
+| Box | Shows remote roles that... | Examples of what they say |
+|-----|----------------------------|---------------------------|
+| **Worldwide** | are open to anyone, anywhere | "Remote - Worldwide", "Anywhere", "Global" |
+| **Africa** | name Africa, or a country or city in it | "Remote, Africa", "Remote, Nigeria", "Remote - Accra" |
+| **EMEA** | say EMEA (Europe, the Middle East and Africa) | "Remote - EMEA" |
+| **Europe** | name Europe, the UK, or a European country or city | "Remote, Germany", "Remote, UK" |
+| **Middle East** | name the Middle East, or a country or city there | "Remote, Dubai", "Remote - Saudi Arabia" |
+| **Americas** | name the US, Canada or Latin America | "Remote - US only", "Remote, Canada", "LATAM" |
+| **Asia-Pacific** | name Asia, Australia, or a country there | "Remote, India", "APAC", "Remote - Sydney" |
+| **My time zone** | tie their hours to a time zone near yours | "Remote (CET)", "Overlap with CET required", "UTC-5 to UTC+2". See [time zones](#time-zones-and-on-site-roles) |
+| **Don't say where** | just say "Remote" without naming a place | "Remote". They are flagged **Check location** |
+
+A few things worth knowing:
+
+- **A role can be in several boxes.** "Remote - US or Europe" is Americas *and* Europe, so it shows if you ticked either. An **EMEA** role is also open to Africa, Europe and the Middle East, so ticking any of those shows it too.
+- **Nothing is assumed.** Untick Worldwide and "Remote - Worldwide" disappears. Tick only Africa and you get only Africa. The default is Worldwide, Africa, EMEA, My time zone and Don't say where.
+- **Remote and on-site are separate.** These boxes only ever apply to *remote* roles. An on-site role, even in your own city, is never shown because of them. On-site and hybrid roles have their own switch, described next.
+- **Hidden roles are not deleted.** Turn on **Show locked roles** to see them, labelled with the reason.
+- **It reads wording.** "Remote - Germany" is read as Europe. A posting can mean something different from what it says, so open it and check before you apply.
+
+---
+
+## Time zones and on-site roles
+
+**Time zones.** Many "remote" jobs are only remote for certain hours: "US Pacific hours", "overlap with CET required". Job Radar reads that wording and checks it against **your** time zone and the range you are happy with.
+
+- **Your time zone** is set to *auto* by default, which means this computer's. A computer set to UTC+0 (Ghana, the UK, Senegal) gets UTC+0. Change it in **Settings → Time zone**, a scrolling list from UTC-12 to UTC+14 with cities beside each. If this computer's zone can't be read, it falls back to UTC+0.
+- **Your range** is how many hours away you will work. The default is 3, so with UTC+0 a job on CET or SAST (1 to 2 hours) is fine, and one on PST or EST (5 to 8 hours) is hidden. Choose *Same time zone only*, up to 12 hours, or *Any* to switch the check off.
+
+| The posting says | Result for someone on UTC+0, range 3 |
+|------------------|--------------------------------------|
+| `Remote (CET)`, `Overlap with CET required` | Kept. 1 hour away |
+| `Remote (PST)`, `Must work EST hours`, `US hours` | Hidden. 8, 5 and 5 hours away |
+| `Remote (UTC-5 to UTC+2)` | Kept. You are inside the range it asks for |
+| `Remote, UTC+1 to UTC+3` | Hidden. A stated range must include you |
+| `within 3 hours of UTC` | Kept |
+| `any time zone`, `work from anywhere` | Kept |
+| Nothing about time zones | Kept. No opinion, so no filter |
+
+Hidden roles are not deleted. They are labelled **Other time zone** and show up if you turn on **Show locked roles**. A role that fits shows a short note ("time zone: CET (UTC+1), 1h from you") on its card. Only sentences about hours in a description are read, so "our offices are in London and New York" never rules a job out. It is wording matching, so it can be wrong: it saves you reading, it does not promise anything. It ignores `CST` and `IST`, because each name means two zones far apart.
+
+**On-site roles.** By default you see **remote roles only**. Turn on **On-site roles** to also keep on-site and hybrid jobs wherever you say you would work. Name places (`Accra, Ghana`, or a country, or several separated by commas) to see only those, or **leave the places blank to see on-site jobs everywhere**. To see **only** on-site jobs, untick every kind of remote role in the checklist above. Put places in **On-site places**, such as `Accra, Ghana`, or a city and a country, separated by commas. Leave it blank for anywhere. Kept ones are labelled **On-site, included**. The time zone check does not apply to them, since you would be there.
 
 ---
 
@@ -236,6 +297,21 @@ It always shows you exactly what it is about to do and asks first. Pressing Ente
 
 ---
 
+## What grows, and what doesn't
+
+Job Radar keeps a few files, and none of them grow for ever.
+
+| File | How it behaves over time |
+|------|--------------------------|
+| `jobs.json`, `report.html` | Rewritten on every search, so they only ever hold the last search's results. A search for every kind of role from every board can make them large (tens of megabytes), because every role is in them |
+| `seen.json` | One short line per role you have been shown, so new ones can be marked **NEW**. A role is forgotten once no board has listed it for **90 days**, so the file follows the boards instead of growing every month. If a forgotten role is ever listed again it shows as new again |
+| `discovered.json` | The list of company boards. It is rebuilt every 30 days, which also clears its list of boards that turned out not to exist |
+| `applied.txt`, `exclude.txt`, `companies.txt` | Only what you add. [Reset](#start-over-reset) can empty them |
+| `settings.json` | Tiny, and only changes when you change a setting |
+| `*.bak`, `*.damaged`, `*.tmp` | At most one of each per file, overwritten rather than piled up. [Reset](#start-over-reset) removes any leftovers |
+
+---
+
 ## If a search is stopped
 
 You can press **Ctrl+C** during a search, or close the window, at any time.
@@ -261,11 +337,12 @@ Each role gets a label for where it can be done:
 
 | Label | Meaning |
 |-------|---------|
-| **Open to Africa / EMEA** | The location names Africa, Nigeria, EMEA or a nearby place |
-| **EMEA** | Located somewhere in Europe, the Middle East or Africa |
-| **Worldwide** | Says "anywhere" and the description agrees |
-| **Check location** | Says "Remote" with no region. Read the posting |
-| *Region locked, On-site* | Hidden unless you turn on **Show locked roles** |
+| **Worldwide**, **Africa**, **EMEA**, **Europe**, **Middle East**, **Americas**, **Asia-Pacific** | The kind of remote role it is, from its location. A role in several shows under the most specific one you ticked |
+| **My time zone** | Its hours are tied to a time zone near yours |
+| **Check location** | Says "Remote" with no place named. Read the posting |
+| **On-site, included** | On-site or hybrid, in a place you listed, with **On-site roles** turned on |
+| **Other time zone** | Remote, but its hours are too far from your time zone. Hidden unless you turn on **Show locked roles** |
+| *Region locked, On-site* | Not a kind you ticked, or on-site and you did not allow it. Hidden unless you turn on **Show locked roles** |
 
 Labels come from the posting's own words and can be wrong. Open the posting and check before you apply.
 
@@ -306,8 +383,8 @@ Most people never need these, because the menu and settings cover them. They are
 
 ```bash
 python jobradar.py                   # search using your saved settings
-python jobradar.py --emea --days 7   # EMEA roles from the last week
-python jobradar.py --everything      # all roles in EMEA, from every board and job site
+python jobradar.py --remote africa,europe --days 7   # only roles naming Africa or Europe, last week
+python jobradar.py --everything      # every kind of role, from every board and job site
 python jobradar.py --open            # open report.html when it finishes
 ```
 
@@ -316,9 +393,14 @@ python jobradar.py --open            # open report.html when it finishes
 | `--days N` | Look back N days (default 30) |
 | `--roles ai\|cv\|web` | Which titles to keep. `cv` follows the skills on your CV. `web` is backend, frontend, full-stack and software engineer |
 | `--any-role` | Keep every kind of role |
-| `--emea` | Keep roles located anywhere in Europe, the Middle East or Africa |
+| `--remote KINDS` | Which kinds of remote role to keep, separated by commas: `worldwide, africa, emea, europe, middle-east, americas, asia-pacific, my-timezone, unclear`. Default: `worldwide,africa,emea,my-timezone,unclear`. See [Which remote roles you get](#which-remote-roles-you-get) |
+| `--emea` | The older shortcut for `--remote worldwide,africa,emea,europe,middle-east,my-timezone,unclear` |
 | `--no-senior` | Drop senior, staff, principal, lead and manager titles |
-| `--all` | Also show region-locked and on-site roles |
+| `--all` | Also show region-locked, on-site and other-time-zone roles |
+| `--timezone ZONE` | Your time zone: `auto` (this computer, the default) or `UTC+1`, `UTC-8`, `UTC+5.5` |
+| `--tz-range HOURS` | Hours from your zone you will work. Default 3. 24 or more turns the check off |
+| `--onsite` | Also keep on-site and hybrid roles |
+| `--places "Accra, Ghana"` | Where you would work on-site (blank: anywhere) |
 | `--discover` | Also read every board found by discovery |
 | `--refresh-discovery` | Scan for boards again now, instead of using the saved list |
 | `--aggregators` | Also read the job sites |
@@ -334,16 +416,57 @@ The menu has shortcuts too: `python cli.py browse`, `settings`, `themes`, `reset
 
 ---
 
-## Windows and PowerShell
+## Your system: Windows, WSL, macOS and Linux
 
-Job Radar works in Windows PowerShell, Windows Terminal and cmd.
+Job Radar needs **Python 3.10 or newer** and works on all of these. Check yours with the command in the table.
 
-- **Install it** with `pipx install "jobradar[all] @ git+https://github.com/Desmond123-arch/jobradar.git"` (the `[all]` includes the full-screen library and PDF reading), then start it with `jobradar`. Or run it from the folder with `python cli.py`.
-- **Full-screen mode.** Windows Python does not include the screen library the full-screen browser uses. `[all]` adds it. From a folder, run `pip install windows-curses`. Or do nothing: **Browse** then opens the web report in your browser instead, which has the same search and filters.
-- **Auto-open.** Turn on **Open report after run** in Settings and the report opens in Chrome (or your default browser) when a search finishes.
-- **The loader** works in Windows Terminal and PowerShell. On an old console that cannot show block characters it draws a plain `####----` bar instead of failing.
-- **WSL users.** Links open in your Windows Chrome automatically.
-- **Which browser opens.** Leave it on *automatic*, or set **Browser** in Settings to `chrome`, `default`, or a command. `python openurl.py` shows what it picked.
+| | **Windows** (PowerShell, cmd, Windows Terminal) | **WSL** (Linux inside Windows) | **macOS** | **Linux** |
+|---|---|---|---|---|
+| **Check Python** | `python --version` | `python3 --version` | `python3 --version` | `python3 --version` |
+| **Get Python** | [python.org](https://www.python.org/downloads/) (tick "Add Python to PATH"), or `winget install Python.Python.3.12` | `sudo apt install python3` | [python.org](https://www.python.org/downloads/) or `brew install python`. The Python that comes with macOS is often too old | Your package manager, for example `sudo apt install python3` |
+| **Start it** | `python cli.py` (or `py cli.py`) | `python3 cli.py` | `python3 cli.py` | `python3 cli.py` |
+| **If installed with pipx** | `jobradar` | `jobradar` | `jobradar` | `jobradar` |
+| **Full-screen mode** | Needs one add-on: `pip install windows-curses` (or install with `[all]`). Without it, **Browse** opens the web report instead | Built in | Built in | Built in |
+| **Mouse** | Needs the add-on above | Built in | Built in | Built in |
+| **Your files live** | The folder, or `C:\Users\you\.jobradar` if installed | The folder, or `~/.jobradar` if installed | The folder, or `~/.jobradar` if installed | The folder, or `~/.jobradar` if installed |
+
+Notes for each:
+
+- **Windows.** Use Windows Terminal or PowerShell. The progress bar and colors work in both, and on an old console that cannot draw block characters it falls back to a plain `####----` bar instead of failing. Windows paths such as `C:\Users\you\Downloads\cv.pdf` work everywhere a path is asked for. To install as a command: `pipx install "jobradar[all] @ git+https://github.com/Desmond123-arch/jobradar.git"`, where `[all]` adds the full-screen library and PDF reading.
+- **WSL.** The full-screen browser, colors and mouse work as on Linux. Windows paths are converted for you, and the CV picker looks in your Windows Downloads, Documents and Desktop as well as your Linux home. Links open in a Windows browser, as described below.
+- **macOS.** Terminal and iTerm2 both show the colors and take the mouse. Links open in your default browser.
+- **Linux.** Links open in your default browser (through `xdg-open`), or in Chrome or Chromium if one is installed.
+- **Over SSH, or any machine with no desktop.** Everything in the terminal works, including the full-screen browser. Nothing can open a browser there, so the link is shown instead: at the bottom of the screen when you press Enter on a role, and as a path after a search. Copy the link, or copy `report.html` to your own computer.
+
+### What opens links, and what if you don't have Chrome
+
+**You do not need Chrome.** Job Radar picks a browser in this order and uses the first one that works:
+
+1. The `JOBRADAR_BROWSER` environment variable, if you set it.
+2. **Settings → Browser**, if you set it.
+3. **Chrome**, if it is installed (Windows, WSL, and Chrome or Chromium on Linux).
+4. **WSL only:** your Windows default browser, through `wslview` if you have it, and otherwise through Windows itself. This works on every WSL install, so Edge, Firefox or anything else is used if that is your default.
+5. Your system's **default browser**. On Windows that is often Edge, on macOS often Safari.
+
+A text-mode browser such as `lynx` or `w3m` is never used, because it would take over the screen Job Radar is drawing on.
+
+**To use a particular browser**, put its command in **Settings → Browser**. Put the whole path in quotes if it has spaces, and write `{url}` where the link goes (it is added at the end if you leave it out).
+
+| Browser | What to enter in Settings → Browser |
+|---------|-------------------------------------|
+| Chrome, found automatically | `chrome` |
+| Whatever your system uses | `default` |
+| Edge on Windows | `"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" {url}` |
+| Edge from WSL | `"/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" {url}` |
+| Firefox on Windows | `"C:\Program Files\Mozilla Firefox\firefox.exe" {url}` |
+| Firefox on Linux or WSL | `firefox {url}` |
+| Brave on Linux | `brave-browser {url}` |
+| Chrome on macOS | `open -a "Google Chrome" {url}` |
+| Firefox on macOS | `open -a Firefox {url}` |
+
+`python openurl.py` prints which browser it would use right now.
+
+**If no browser can be started** (a wrong command, or nothing installed), nothing breaks. The full-screen browser says "Couldn't open" and shows the link, **Open report.html** shows the file's path and says to open it yourself, and `--open` prints a message. Your results are always saved in `report.html` either way.
 
 ---
 
@@ -360,6 +483,10 @@ Job Radar works in Windows PowerShell, Windows Terminal and cmd.
 **"The first search is very slow."** That is the one-time scan of thousands of boards. It is saved for 30 days, and later searches are much faster.
 
 **"Pressing Enter does nothing."** Your browser setting may be wrong. Open Settings and set **Browser** to `default`.
+
+**"A job I wanted was hidden by its time zone."** Open it with **Show locked roles** (it is labelled *Other time zone*, with the reason), or widen **Time zone range**, or set it to *Any*.
+
+**"The time zone is wrong."** Pick yours in **Settings → Time zone**. *Auto* trusts this computer's clock settings, which can be wrong inside a container or a remote server.
 
 **"Clicking does nothing."** Check that **Mouse** is *on* in Settings and that `JOBRADAR_MOUSE` isn't set to `0`. Inside tmux, run `tmux set -g mouse on`. A very old terminal may not report the mouse at all. Everything still works from the keyboard.
 
@@ -399,6 +526,7 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `settings.py` | Reads and writes your settings, finds your CV |
 | `cvmatch.py` | Reads your CV and scores jobs against it |
 | `openurl.py` | Opens links in the right browser |
+| `timezones.py` | Your time zone, and reading zone wording in postings |
 | `paths.py` | Decides where your files live, and saves files safely so a stopped run can't damage them |
 | `reset.py` | Puts things back to a fresh start, keeping a `.bak` of your lists |
 | `entry.py` | The commands `jobradar`, `jobradar-search` and `jobradar-cv` |
