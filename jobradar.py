@@ -327,7 +327,11 @@ def fetch_company(c, fetch=fetch_json, light=False):
 
 # ---------------------------------------------------------------- judging
 
-WORLDWIDE = re.compile(r"\b(anywhere|worldwide|world ?wide|global(ly)?|all countries|any (country|location)|fully remote|remote[- ]first)\b", re.I)
+# Clear statements that anyone can apply, and softer ones ("fully remote") that only mean no office. A soft one
+# doesn't count if the location also names a restricted place: "Fully Remote (US-only)" is a US job.
+WORLDWIDE_STRONG = re.compile(r"\b(anywhere|worldwide|world ?wide|all countries|any (country|location))\b", re.I)
+WORLDWIDE_SOFT = re.compile(r"\b(global(ly)?|fully remote|remote[- ]first)\b", re.I)
+WORLDWIDE = re.compile(f"(?:{WORLDWIDE_STRONG.pattern})|(?:{WORLDWIDE_SOFT.pattern})", re.I)
 AFRICA_EMEA = re.compile(r"\b(africa|nigeria|lagos|emea|sub-saharan|gmt\+?1|wat|cet|europe, middle east)\b", re.I)
 # Anywhere in Europe, the Middle East or Africa. Only used with --emea.
 EMEA_PLACES = re.compile(
@@ -364,6 +368,10 @@ def classify_region(job: Job, emea: bool = False):
     if not job.remote and not WORLDWIDE.search(loc):
         return "onsite", f"not marked remote ({loc or 'no location'})"
     if WORLDWIDE.search(loc):
+        if not WORLDWIDE_STRONG.search(loc):
+            named = re.sub(r"\bremote\b", "", WORLDWIDE_SOFT.sub("", loc), flags=re.I).strip(" ,-–()/|%0123456789")
+            if RESTRICTED.search(named):
+                return "restricted", f"says remote, but only in: {loc}"
         if DESC_LOCK.search(job.description):
             m = DESC_LOCK.search(job.description)
             return "restricted", f"says worldwide, but the description says: '{m.group(0)}'"
@@ -504,6 +512,7 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
         any_role=False, role_rx=None, no_senior=False, emea=False, workers=1, light=False, extra_jobs=(), dead_out=None, cv=None):
     now = now or datetime.now(timezone.utc)
     cutoff = now - timedelta(days=days)
+    hn_cutoff = now - timedelta(days=max(days, HN_MIN_DAYS))
     excluded_n = {squash(x) for x in excluded}
     applied_n = set()
     for line in applied:
@@ -564,7 +573,7 @@ def run(companies, excluded, applied, days, show_all, seen, fetch=fetch_json, no
             counts["senior"] += 1
             continue
         p = posted_dt(job)
-        if p and p < cutoff:
+        if p and p < (hn_cutoff if job.provider == "hackernews" else cutoff):
             counts["old"] += 1
             continue
         if (norm(job.company), norm(job.title)) in applied_n:
@@ -672,6 +681,9 @@ def agg_remoteok(fetch, pages):
 
 
 HN_ROLE = re.compile(r"\b(engineer|developer|programmer|scientist|architect|sre|devops|swe|founding|cto|researcher|designer|manager|lead)", re.I)
+# "Who is hiring?" is posted once a month and most replies land in its first days, so a short --days window
+# would hide nearly all of it by the third week. Its posts stay open for the month, so they get a longer one.
+HN_MIN_DAYS = 35
 HN_THREAD = re.compile(r"^ask hn: who is hiring\b", re.I)  # not "who wants to be hired" / "freelancer"
 HN_PLACE = re.compile(r"\b(remote|onsite|on-site|hybrid|in[- ]office)\b|, [A-Z]{2}\b|\b(usa?|uk|eu|emea|europe|worldwide|global)\b", re.I)
 HN_NOT_LOCATION = re.compile(r"https?://|[$€£]|\b(full[- ]?time|part[- ]?time|contract|salary|equity|visa|series [a-e]|yc [a-z]\d+)\b", re.I)
