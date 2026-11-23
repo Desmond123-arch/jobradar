@@ -26,7 +26,7 @@ jobradar-cv = "entry:cv"
 Homepage = "https://github.com/Desmond123-arch/jobradar"
 
 [tool.setuptools]
-py-modules = ["jobradar", "cli", "tui", "settings", "openurl", "cvmatch", "paths", "entry", "reset", "timezones", "scopes", "sources"]
+py-modules = ["jobradar", "cli", "tui", "settings", "openurl", "cvmatch", "paths", "entry", "reset", "timezones", "scopes", "sources", "selfupdate"]
 
 # Starter files, copied into ~/.jobradar on first run (see paths.py).
 [tool.setuptools.data-files]

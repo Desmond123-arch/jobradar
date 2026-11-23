@@ -9,6 +9,7 @@
   python cli.py browse    go straight to the full-screen browser
   python cli.py settings  go straight to settings
   python cli.py reset     put things back to a fresh start (asks first; keeps a .bak of your lists)
+  python cli.py update    get the latest version from GitHub (shows what is new, asks first)
   python cli.py themes    preview every color theme in your browser
   python cli.py --plain   plain prompts instead of the full-screen interface
 
@@ -644,6 +645,10 @@ def open_report(ui):
 
 def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=None, fancy=None, cv_dirs=None):
     argv = list(argv)
+    first = next((a for a in argv if not a.startswith("-")), None)
+    if first == "update":  # plain text, no full-screen: it runs pip or git and shows their output
+        import selfupdate
+        return selfupdate.main([a for a in argv if a != "update"], say=out)
     if fancy is None:  # only a real terminal gets the full-screen interface
         import tui
         fancy = "--plain" not in argv and inp is input and tui.available()

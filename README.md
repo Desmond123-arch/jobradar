@@ -28,6 +28,7 @@ Job Radar reads the job boards that companies publish themselves, keeps the role
 - [Themes](#themes)
 - [Command line cheat sheet](#command-line-cheat-sheet)
 - [Your system: Windows, WSL, macOS and Linux](#your-system-windows-wsl-macos-and-linux)
+- [Updating](#updating)
 - [Troubleshooting](#troubleshooting)
 - [Run it every morning](#run-it-every-morning)
 - [Files in this project](#files-in-this-project)
@@ -467,6 +468,28 @@ A text-mode browser such as `lynx` or `w3m` is never used, because it would take
 `python openurl.py` prints which browser it would use right now.
 
 **If no browser can be started** (a wrong command, or nothing installed), nothing breaks. The full-screen browser says "Couldn't open" and shows the link, **Open report.html** shows the file's path and says to open it yourself, and `--open` prints a message. Your results are always saved in `report.html` either way.
+
+---
+
+## Updating
+
+```
+jobradar update            # from a pipx, uv or pip install
+python cli.py update       # from a folder
+```
+
+It tells you what is new, then asks before changing anything. `--check` only looks, and `--yes` skips the question.
+
+| Installed as | What it runs |
+|---|---|
+| A folder (git clone) | `git pull --ff-only`. It stops, changing nothing, if you have uncommitted changes or are not on `main` |
+| pipx | `pipx install --force` from GitHub |
+| uv | `uv tool install --force` from GitHub |
+| pip | `pip install --force-reinstall` from GitHub |
+
+The version number doesn't change with every commit, so a plain "upgrade" would say you are up to date when you are not. That is why it forces a reinstall. Your settings, results and company list are kept, and so are the optional extras you already use.
+
+On Windows an installed program can't replace itself while it is running, so `update` prints the exact command to run in a new window instead. Offline, it says so and changes nothing.
 
 ---
 
