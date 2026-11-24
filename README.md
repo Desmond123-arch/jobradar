@@ -251,11 +251,22 @@ Job Radar searches in three layers. Use as many as you like.
 
 | Layer | What it covers | How to use it |
 |-------|----------------|---------------|
-| **Your list** | The companies in `companies.txt` | Paste a careers-page URL per line, or choose **Add a company** in the menu |
+| **Your list** | The companies in `companies.txt` | Paste a careers-page URL per line, or choose **Add a company** in the menu. To edit the file itself, see [editing a list](#editing-a-list) |
 | **Job sites** | Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News | Settings → Companies → *plus job sites* |
 | **Every board** | Thousands of companies, found for you | Settings → Companies → *every board* |
 
 **Adding a company by hand.** Open `companies.txt` and add one line per company. The part after `|` is optional.
+
+<a id="editing-a-list"></a>
+
+**Editing a list in a text editor.** Installed copies keep these files in `~/.jobradar` (or `C:\Users\you\.jobradar`), so run:
+
+```
+jobradar edit              # choose companies, exclude or applied
+jobradar edit companies    # or name one
+```
+
+It is also in the menu as **Edit my lists in a text editor**. It opens the file, keeps the old one as `companies.txt.bak`, and when you close the editor says what changed and points out any `companies.txt` line it can't read. The editor is the first of: `JOBRADAR_EDITOR`, `VISUAL`, `EDITOR`; then Notepad on Windows, your default text editor on macOS, and `nano`, `micro`, `vim` or `vi` on Linux and WSL (WSL falls back to Windows Notepad). If none can start it prints the path so you can open the file yourself.
 
 ```
 https://jobs.ashbyhq.com/somecompany | Some Company
@@ -387,6 +398,10 @@ python jobradar.py                   # search using your saved settings
 python jobradar.py --remote africa,europe --days 7   # only roles naming Africa or Europe, last week
 python jobradar.py --everything      # every kind of role, from every board and job site
 python jobradar.py --open            # open report.html when it finishes
+
+python cli.py edit companies         # open a list in a text editor (companies, exclude or applied)
+python cli.py update                 # get the latest version (see Updating)
+python cli.py reset                  # start over (see Start over)
 ```
 
 | Flag | Effect |
@@ -552,6 +567,10 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `timezones.py` | Your time zone, and reading zone wording in postings |
 | `paths.py` | Decides where your files live, and saves files safely so a stopped run can't damage them |
 | `reset.py` | Puts things back to a fresh start, keeping a `.bak` of your lists |
+| `editor.py` | Opens your lists in a text editor (`jobradar edit`) |
+| `selfupdate.py` | Updates Job Radar from GitHub (`jobradar update`) |
+| `scopes.py` | Sorts remote roles into the kinds you can tick (worldwide, Africa, EMEA...) |
+| `sources.py` | The names of the job boards and sites |
 | `entry.py` | The commands `jobradar`, `jobradar-search` and `jobradar-cv` |
 | `pyproject.toml` | What makes it installable with pipx, uv or pip |
 | `companies.txt` | Companies to search. Yours to edit |

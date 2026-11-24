@@ -2,13 +2,14 @@
 
   1  Search        answer a few questions, jobradar runs with the matching flags
   2  Browse        full-screen list of the last results: filter, sort, press Enter to open a posting
-  3  Add company   paste a careers URL into companies.txt
+  3  Add company   paste a careers URL into companies.txt (or open your lists in a text editor)
   4  Open report   open report.html in your browser
   5  Settings      your CV, roles, which remote roles, time zone, on-site, companies, days, browser, theme
 
   python cli.py browse    go straight to the full-screen browser
   python cli.py settings  go straight to settings
   python cli.py reset     put things back to a fresh start (asks first; keeps a .bak of your lists)
+  python cli.py edit      open companies.txt, exclude.txt or applied.txt in a text editor
   python cli.py update    get the latest version from GitHub (shows what is new, asks first)
   python cli.py themes    preview every color theme in your browser
   python cli.py --plain   plain prompts instead of the full-screen interface
@@ -21,10 +22,12 @@ import json
 import math
 import re
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
 import cvmatch
+import editor
 import jobradar as jr
 import openurl
 import paths
@@ -65,6 +68,7 @@ class UI:
     def __init__(self, root=jr.HERE, inp=input, out=print, runner=jr.main, opener=None):
         self.root, self.inp, self.out, self.runner = Path(root), inp, out, runner
         self.opener = opener or (lambda url: openurl.open_url(url)[0])
+        self.editor_runner = subprocess.run
 
     def say(self, text=""):
         self.out(text)
@@ -142,6 +146,10 @@ class FancyUI(UI):
     def say(self, text=""):
         if str(text).strip():
             self.notes.append(text)
+
+    def suspend(self):
+        """Give the terminal back, so an editor that runs inside it can have the whole screen."""
+        self.screen.close()
 
     def close(self):
         """Back to the normal terminal, printing anything still held."""
@@ -617,6 +625,20 @@ def add_company(ui):
     ui.say(f"  added {c['name']} ({c['provider']}:{c['slug']})")
 
 
+def edit_lists(ui, which=None):
+    """Open companies.txt, exclude.txt or applied.txt in a text editor."""
+    names = list(editor.LISTS)
+    if which not in editor.LISTS:
+        if which:
+            ui.say(f"  I don't know a list called '{which}'. Choose from: {', '.join(names)}.")
+            return 1
+        which = ui.choose("Which list?", [(n, f"{editor.LISTS[n][1]} ({editor.LISTS[n][0]})") for n in names], "companies")
+    filename = editor.LISTS[which][0]
+    starter = paths.starter_file(filename)
+    return editor.edit(which, ui.path(filename), jr.parse_company_line, say=ui.say, wsl=openurl.in_wsl(), starter=starter,
+                       suspend=getattr(ui, "suspend", lambda: None), runner=ui.editor_runner)
+
+
 def show_themes(ui):
     """Write themes.html (every color theme, rendered with your own results) and open it."""
     import tui
@@ -682,6 +704,11 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
             return 0
         if command == "themes":
             return show_themes(ui)
+        if command == "edit":
+            try:
+                return edit_lists(ui, words[1] if len(words) > 1 else None)
+            except Back:
+                return 0
         if not fancy:
             ui.say("Job Radar")
         menu_ran = True
@@ -689,7 +716,7 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
             try:
                 choice = ui.choose("What now?", [("search", "Search for jobs"), ("browse", "Browse the last results"),
                                                  ("add", "Add a company"), ("report", "Open report.html"),
-                                                 ("settings", "Settings"), ("quit", "Quit")], "search")
+                                                 ("settings", "Settings"), ("edit", "Edit my lists in a text editor"), ("quit", "Quit")], "search")
             except Back:
                 break
             try:
@@ -699,6 +726,8 @@ def main(argv=(), inp=input, out=print, root=jr.HERE, runner=jr.main, opener=Non
                     browse(ui)
                 elif choice == "add":
                     add_company(ui)
+                elif choice == "edit":
+                    edit_lists(ui)
                 elif choice == "report":
                     open_report(ui)
                 elif choice == "settings":
