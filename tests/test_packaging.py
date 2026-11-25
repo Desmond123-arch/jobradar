@@ -27,7 +27,7 @@ class PackagingTests(unittest.TestCase):
 
     def test_every_import_between_shipped_modules_resolves(self):
         std = set(sys.stdlib_module_names)
-        optional = {"pypdf", "curses"}
+        optional = {"pypdf", "curses", "certifi"}  # imported only when present
         for module in sorted(listed()):
             for line in (ROOT / f"{module}.py").read_text(encoding="utf-8").splitlines():
                 found = re.match(r"\s*(?:import|from)\s+([A-Za-z_][A-Za-z0-9_]*)", line)

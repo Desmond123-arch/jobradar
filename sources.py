@@ -8,6 +8,7 @@ SOURCES = [
     ("greenhouse", "Greenhouse"),
     ("lever", "Lever"),
     ("ashby", "Ashby"),
+    ("gem", "Gem"),
     ("remotive", "Remotive"),
     ("arbeitnow", "Arbeitnow"),
     ("jobicy", "Jobicy"),

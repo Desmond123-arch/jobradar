@@ -607,7 +607,7 @@ def browse_plain(ui):
 # ---------------------------------------------------------------- the rest
 
 def add_company(ui):
-    line = ui.ask("\nCareers URL (Greenhouse, Lever or Ashby), optionally '| Name':")
+    line = ui.ask("\nCareers URL (Greenhouse, Lever, Ashby or Gem), optionally '| Name':")
     if not line:
         return
     try:

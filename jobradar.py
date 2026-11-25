@@ -1,6 +1,6 @@
 """jobradar: check companies' own job boards for jobs you can actually take, remote or on-site.
 
-Reads the free public APIs behind Greenhouse, Lever and Ashby job boards, and several job
+Reads the free public APIs behind Greenhouse, Lever, Ashby and Gem job boards, and several job
 sites (no key needed), keeps the roles you ask for (the kinds of remote role you tick, and
 on-site roles in the places you name or anywhere), skips companies you've excluded and roles
 you've applied to, and marks what's new since the last run. Run `python cli.py` for the menu.
@@ -12,7 +12,7 @@ you've applied to, and marks what's new since the last run. Run `python cli.py` 
 Company-wide search (no companies.txt needed):
 
   python jobradar.py --everything    every role in EMEA from every discoverable
-                                     Greenhouse/Lever/Ashby board plus the job
+                                     Greenhouse/Lever/Ashby/Gem board plus the job
                                      aggregators (same as --discover --aggregators
                                      --emea --any-role)
   python jobradar.py --discover      also scan every board found by slug discovery
@@ -43,6 +43,7 @@ from pathlib import Path
 import paths
 
 import cvmatch
+import net
 import openurl
 import scopes
 import settings
@@ -170,6 +171,7 @@ URL_PATTERNS = [
     ("greenhouse", re.compile(r"(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io/(?:embed/job_board\?for=)?([A-Za-z0-9_-]+)")),
     ("lever", re.compile(r"jobs\.(?:eu\.)?lever\.co/([A-Za-z0-9_.-]+)")),
     ("ashby", re.compile(r"jobs\.ashbyhq\.com/([A-Za-z0-9_.%-]+)")),
+    ("gem", re.compile(r"jobs\.gem\.com/([A-Za-z0-9_.%-]+)")),
 ]
 
 
@@ -181,14 +183,14 @@ def parse_company_line(line: str):
     name = None
     if "|" in line:
         line, name = [p.strip() for p in line.split("|", 1)]
-    m = re.match(r"^(greenhouse|lever|ashby):([A-Za-z0-9_.%-]+)$", line)
+    m = re.match(r"^(greenhouse|lever|ashby|gem):([A-Za-z0-9_.%-]+)$", line)
     if m:
         return {"provider": m.group(1), "slug": m.group(2), "name": name or m.group(2)}
     for provider, rx in URL_PATTERNS:
         m = rx.search(line)
         if m:
             return {"provider": provider, "slug": m.group(1), "name": name or m.group(1)}
-    raise ValueError(f"can't tell which job board this is: {line!r} (use a Greenhouse, Lever or Ashby URL)")
+    raise ValueError(f"can't tell which job board this is: {line!r} (use a Greenhouse, Lever, Ashby or Gem URL)")
 
 
 def read_lines(path: Path):
@@ -314,10 +316,27 @@ def from_ashby(company, data, slug=""):
     return out
 
 
+def from_gem(company, data, slug=""):
+    out = []
+    for j in data if isinstance(data, list) else []:
+        places = [(j.get("location") or {}).get("name", "")] + [(o.get("location") or {}).get("name", "") for o in j.get("offices") or []]
+        loc = ", ".join(dict.fromkeys(p for p in places if p))  # the main location, then any other offices, once each
+        kind = (j.get("location_type") or "").lower()
+        out.append(Job(
+            company=company, title=j.get("title", ""), url=j.get("absolute_url", ""),
+            location=loc, remote=kind == "remote" or "remote" in loc.lower(),
+            posted=j.get("first_published_at") or j.get("created_at") or "",
+            description=j.get("content_plain") or strip_html(j.get("content", "")),
+            provider="gem", job_id=str(j.get("id", "")),
+        ))
+    return out
+
+
 ENDPOINTS = {
     "greenhouse": ("https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true", from_greenhouse),
     "lever": ("https://api.lever.co/v0/postings/{slug}?mode=json", from_lever),
     "ashby": ("https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true", from_ashby),
+    "gem": ("https://api.gem.com/job_board/v0/{slug}/job_posts/", from_gem),
 }
 
 
@@ -824,6 +843,7 @@ DISCOVERY_HOSTS = {
     "greenhouse": ["boards.greenhouse.io", "job-boards.greenhouse.io", "boards.eu.greenhouse.io", "job-boards.eu.greenhouse.io"],
     "lever": ["jobs.lever.co", "jobs.eu.lever.co"],
     "ashby": ["jobs.ashbyhq.com"],
+    "gem": ["jobs.gem.com"],
 }
 SLUG_RX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,60}$")
 NOT_SLUGS = {"embed", "jobs", "api", "static", "assets", "login", "about", "robots.txt", "sitemap.xml", "favicon.ico", "company"}
@@ -858,11 +878,13 @@ def commoncrawl_urls(host, text=fetch_text):
     return [json.loads(l).get("url", "") for l in text(f"{latest}?url={host}/*&output=json&fl=url&limit=100000").splitlines() if l.startswith("{")]
 
 
-def discover_slugs(text=fetch_text):
-    """provider -> sorted slugs, merged from every source that answers. Returns (slugs, problems)."""
+def discover_slugs(text=fetch_text, providers=None):
+    """provider -> sorted slugs, merged from every source that answers. Returns (slugs, problems).
+    providers limits the scan to some boards (used when a cached scan predates a board we now support)."""
     out, problems = {}, []
-    PROGRESS.start("Scanning the web archive", sum(len(h) for h in DISCOVERY_HOSTS.values()))
-    for provider, hosts in DISCOVERY_HOSTS.items():
+    wanted = {p: h for p, h in DISCOVERY_HOSTS.items() if providers is None or p in providers}
+    PROGRESS.start("Scanning the web archive", sum(len(h) for h in wanted.values()))
+    for provider, hosts in wanted.items():
         urls = []
         for host in hosts:
             for source in (archive_urls, commoncrawl_urls):
@@ -894,6 +916,13 @@ def load_discovery(path, refresh=False, text=fetch_text, now=None):
         cache = {"at": now.isoformat(), "slugs": slugs, "dead": []}
         if all(slugs.values()):  # a scan where a source was down would hide boards for 30 days
             paths.atomic_write(path, json.dumps(cache))
+    else:
+        missing = [p for p in DISCOVERY_HOSTS if p not in cache.get("slugs", {})]
+        if missing:  # a scan from before a board was supported: look for just that board now, not in 30 days
+            slugs, problems = discover_slugs(text, providers=missing)
+            if all(slugs.values()):
+                cache["slugs"] = {**cache.get("slugs", {}), **slugs}
+                paths.atomic_write(path, json.dumps(cache))
     return cache, problems
 
 
@@ -1326,7 +1355,7 @@ def build_parser():
     ap.add_argument("--any-role", action="store_true", help="don't limit to AI and engineering titles")
     ap.add_argument("--roles", choices=sorted(ROLE_PRESETS), help="only these titles instead of AI/engineering (web = backend, frontend, fullstack, software engineer, web developer; cv = the stack on your CV)")
     ap.add_argument("--no-senior", action="store_true", help="drop senior, staff, principal, lead, manager and similar titles")
-    ap.add_argument("--discover", action="store_true", help="also read every Greenhouse/Lever/Ashby board found by slug discovery")
+    ap.add_argument("--discover", action="store_true", help="also read every Greenhouse/Lever/Ashby/Gem board found by slug discovery")
     ap.add_argument("--refresh-discovery", action="store_true", help="re-scan for board slugs now instead of using the cache")
     ap.add_argument("--aggregators", action="store_true", help="also pull Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News Who is hiring")
     ap.add_argument("--agg-pages", type=int, default=5, help="pages to read per paginated aggregator (default 5)")
@@ -1415,6 +1444,7 @@ def update_seen(state, listed, shown, today, keep_days=SEEN_KEEP_DAYS):
 
 
 def main(argv=None):
+    net.install()  # a Python with no certificates (a Mac with python.org's Python) can borrow the system's
     """Run a search. Ctrl+C stops it cleanly: nothing is half-saved, so your files are exactly as they were."""
     try:
         return _main(argv)
@@ -1516,6 +1546,7 @@ def _main(argv=None):
         paths.atomic_write(cache_path, json.dumps(cache))
     # Each file is saved whole or not at all. The seen list goes last: if a run is cut off before it, the roles
     # just show as new again instead of being marked seen without ever reaching your results.
+    problems = net.collapse(problems)
     paths.atomic_write(args.out, render(jobs, problems, counts, args.days, now,
                                         "outside the role filter" if (args.roles or args.any_role) else "not an AI or engineering title"))
     paths.atomic_write(HERE / "jobs.json", json.dumps([asdict(j) | {"description": j.description[:400]} for j in jobs], indent=2))

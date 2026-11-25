@@ -40,7 +40,7 @@ Job Radar reads the job boards that companies publish themselves, keeps the role
 
 ## What it does
 
-1. **Collects jobs** from the public job boards behind [Greenhouse](https://boards-api.greenhouse.io), [Lever](https://api.lever.co/v0/postings) and [Ashby](https://api.ashbyhq.com/posting-api/job-board), plus the job sites Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News "Who is hiring?".
+1. **Collects jobs** from the public job boards behind [Greenhouse](https://boards-api.greenhouse.io), [Lever](https://api.lever.co/v0/postings) [Ashby](https://api.ashbyhq.com/posting-api/job-board) and [Gem](https://jobs.gem.com), plus the job sites Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News "Who is hiring?".
 2. **Keeps the ones that fit you.** You choose the kind of role, which kinds of remote role you want (or on-site roles instead, or as well, in the places you name or anywhere), and how far back to look. Roles you have applied to, and companies you have ruled out, never show up.
 3. **Scores them against your CV**, if you give it one, so you can see which roles match the skills you actually have. A CV is optional: without one, everything still works, you just don't get the match scores.
 4. **Shows you what is new** since the last time you looked.
@@ -119,7 +119,7 @@ Choose **Browse the last results** in the menu, or run `python cli.py browse`. M
 | `Enter` | **Open the posting in your browser** |
 | `/` | Filter as you type. Several words must all match. `"in quotes"` keeps a phrase. `-word` leaves a word out |
 | `r` | Cycle through the kinds of role in your list: Africa, EMEA, Worldwide, Check location and so on |
-| `b` | Cycle through the **job boards** in your results: Greenhouse, Lever, Ashby, Hacker News and so on. Combines with `r` |
+| `b` | Cycle through the **job boards** in your results: Greenhouse, Lever, Ashby, Gem, Hacker News and so on. Combines with `r` |
 | `n` | Show only new roles |
 | `s` | Cycle the sort: best match, fit score, newest, company |
 | `a` | Mark as applied. It is saved and hidden from now on |
@@ -257,6 +257,15 @@ Job Radar searches in three layers. Use as many as you like.
 
 **Adding a company by hand.** Open `companies.txt` and add one line per company. The part after `|` is optional.
 
+```
+https://jobs.ashbyhq.com/somecompany | Some Company
+https://jobs.lever.co/othercompany
+https://jobs.gem.com/anothercompany
+https://job-boards.greenhouse.io/thirdcompany
+```
+
+To find the right address, open a job posting and click Apply. If the address starts with `jobs.ashbyhq.com`, `jobs.gem.com`, `jobs.lever.co` or `job-boards.greenhouse.io`, that is the one.
+
 <a id="editing-a-list"></a>
 
 **Editing a list in a text editor.** Installed copies keep these files in `~/.jobradar` (or `C:\Users\you\.jobradar`), so run:
@@ -268,15 +277,7 @@ jobradar edit companies    # or name one
 
 It is also in the menu as **Edit my lists in a text editor**. It opens the file, keeps the old one as `companies.txt.bak`, and when you close the editor says what changed and points out any `companies.txt` line it can't read. The editor is the first of: `JOBRADAR_EDITOR`, `VISUAL`, `EDITOR`; then Notepad on Windows, your default text editor on macOS, and `nano`, `micro`, `vim` or `vi` on Linux and WSL (WSL falls back to Windows Notepad). If none can start it prints the path so you can open the file yourself.
 
-```
-https://jobs.ashbyhq.com/somecompany | Some Company
-https://jobs.lever.co/othercompany
-https://job-boards.greenhouse.io/thirdcompany
-```
-
-To find the right address, open a job posting and click Apply. If the address starts with `jobs.ashbyhq.com`, `jobs.lever.co` or `job-boards.greenhouse.io`, that is the one.
-
-**"Every board" explained.** None of the three platforms lets you search all their companies at once, so Job Radar finds company names from the Internet Archive's record of their pages, then checks each one. Many guesses are not real boards, and those are skipped quietly. The first scan takes a few minutes. After that the list is saved for 30 days.
+**"Every board" explained.** None of these platforms lets you search all their companies at once, so Job Radar finds company names from the Internet Archive's record of their pages, then checks each one. Many guesses are not real boards, and those are skipped quietly. The first scan takes a few minutes. After that the list is saved for 30 days.
 
 **Keep track.** Add a line to `applied.txt` as `Company | Job title`, or press `a` in the browser, and that role never appears again. Add a company name to `exclude.txt`, or press `x`, to skip it completely.
 
@@ -512,6 +513,8 @@ On Windows an installed program can't replace itself while it is running, so `up
 
 **"No matching roles."** Widen the net: raise **Look back (days)**, turn on **Show locked roles**, switch **Roles** to *every role*, or set **Companies** to *every board*.
 
+**"CERTIFICATE_VERIFY_FAILED" on every board (usually on a Mac).** Python from python.org comes with no security certificates until you install them, so it distrusts every website. Job Radar now borrows the ones your computer already has, so this should not happen. If you still see one line saying "requests failed ... can't check websites' security certificates", open **Finder > Applications > Python 3.x** and double-click **Install Certificates.command**, or run `python3 -m pip install certifi`, then try again. Job Radar never turns certificate checking off.
+
 **"`jobradar` is not recognized" or "command not found".** pipx and uv put commands in a folder your terminal may not know yet. Run `pipx ensurepath` (or `uv tool update-shell`), then open a new terminal window. Until then, `python cli.py` from the folder always works.
 
 **"Where did my settings and results go?"** An installed copy keeps them in `~/.jobradar` (`C:\Users\you\.jobradar` on Windows), not in the folder you ran it from. The path of `report.html` is printed at the end of every search, so you can see the exact folder there.
@@ -564,6 +567,7 @@ Your `settings.json` stays on your computer, so the daily run uses the standard 
 | `settings.py` | Reads and writes your settings, finds your CV |
 | `cvmatch.py` | Reads your CV and scores jobs against it |
 | `openurl.py` | Opens links in the right browser |
+| `net.py` | Makes secure web requests work on a Python with no certificates, and explains it when they don't |
 | `timezones.py` | Your time zone, and reading zone wording in postings |
 | `paths.py` | Decides where your files live, and saves files safely so a stopped run can't damage them |
 | `reset.py` | Puts things back to a fresh start, keeping a `.bak` of your lists |
@@ -591,7 +595,7 @@ Pull requests are welcome. Please:
 
 - Keep it **free of extra installs**. The project uses only what comes with Python (PDF reading is optional).
 - Add a test with any change. The tests use made-up data and never touch the network.
-- If you add a new job board, add test data for it like the Greenhouse, Lever and Ashby ones.
+- If you add a new job board, add test data for it like the Greenhouse, Lever, Ashby and Gem ones.
 
 Run the tests from the project folder:
 
@@ -605,8 +609,8 @@ To work on it as an installed command that follows your edits, run `pip install 
 
 ## Credits
 
-- **[OsasDTEch](https://github.com/OsasDTEch)** created Job Radar. The original project is at **https://github.com/OsasDTEch/jobradar**. The idea, the Greenhouse, Lever and Ashby readers, the Africa and EMEA region check, the fit score, the applied and excluded lists, and the first report all come from there.
-- Jobs come from the public job-board pages of Greenhouse, Lever and Ashby, and from Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News. Company names are found with the help of the Internet Archive.
+- **[OsasDTEch](https://github.com/OsasDTEch)** created Job Radar. The original project is at **https://github.com/OsasDTEch/jobradar**. The idea, the Greenhouse, Lever and Ashby readers (the Gem reader was added later), the Africa and EMEA region check, the fit score, the applied and excluded lists, and the first report all come from there.
+- Jobs come from the public job-board pages of Greenhouse, Lever, Ashby and Gem, and from Remotive, Arbeitnow, Jobicy, Himalayas, RemoteOK and Hacker News. Company names are found with the help of the Internet Archive.
 
 ---
 

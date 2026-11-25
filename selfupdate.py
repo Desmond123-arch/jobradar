@@ -28,6 +28,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+import net
+
 REPO = "Desmond123-arch/jobradar"
 GIT_URL = f"git+https://github.com/{REPO}.git"
 API = f"https://api.github.com/repos/{REPO}"
@@ -91,6 +93,7 @@ def spec():
 
 def fetch_json(url, timeout=20, tries=2):
     """GET a GitHub API url as JSON. One retry, because a dropped connection is usually a blip."""
+    net.install()
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/vnd.github+json"})
     for attempt in range(tries):
         try:
@@ -179,6 +182,9 @@ def main(argv=(), say=print, ask=input, fetch=fetch_json, runner=subprocess.run,
     try:
         latest, headline = latest_commit(fetch)
     except NETWORK_ERRORS as exc:
+        if net.MARKER in str(exc):
+            say(net.FIX)
+            return 1
         say(f"Couldn't reach GitHub to check ({type(exc).__name__}). Try again in a moment, or when you are online.")
         return 1
 
